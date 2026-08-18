@@ -1,0 +1,19 @@
+# Secrets — không bao giờ commit
+.env
+*.env
+
+# Database local
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS / editor
+.DS_Store

@@ -1,0 +1,31 @@
+"""Seed Achievement tĩnh (mục 45). category dùng để nhóm hiển thị UI."""
+
+# (achievement_id, name_en, name_vi, category, description_vi, reward_money, reward_exp)
+ACHIEVEMENTS = [
+    ("first_pathway", "First Steps", "Bước Chân Đầu Tiên", "pathway",
+     "Chọn Pathway đầu tiên của bạn.", 500, 100),
+    ("sequence_8", "Beyond the Threshold", "Vượt Ngưỡng Cửa", "sequence",
+     "Tiến cấp lên Sequence 8 lần đầu tiên.", 2000, 500),
+    ("sequence_5", "Halfway to the Unknown", "Nửa Đường Vào Vô Định", "sequence",
+     "Đạt tới Sequence 5.", 10000, 2000),
+    ("first_kill", "Blooded", "Vấy Máu Lần Đầu", "combat",
+     "Thắng trận PvE đầu tiên.", 200, 50),
+    ("first_pvp_win", "Duelist", "Kẻ Quyết Đấu", "combat",
+     "Thắng trận PvP đầu tiên.", 500, 100),
+    ("first_investigation", "Keen Eye", "Mắt Tinh Tường", "investigation",
+     "Hoàn thành một cuộc Điều tra.", 500, 150),
+    ("join_church", "Faithful", "Kẻ Sùng Đạo", "world",
+     "Gia nhập một Nhà Thờ.", 300, 50),
+    ("join_faction", "Aligned", "Chọn Phe", "world",
+     "Gia nhập một Faction.", 300, 50),
+    ("join_tarot", "Hidden Face", "Gương Mặt Ẩn Giấu", "social",
+     "Trở thành thành viên Tarot Club.", 1000, 200),
+    ("first_trade", "Merchant", "Nhà Buôn", "economy",
+     "Hoàn thành giao dịch Trade đầu tiên với người chơi khác.", 200, 50),
+    ("first_artifact", "Relic Bearer", "Người Mang Cổ Vật", "world",
+     "Sở hữu một Sealed Artifact.", 500, 100),
+    ("wealthy_1", "First Fortune", "Gia Tài Đầu Tiên", "economy",
+     "Sở hữu từ 50,000 Bảng trở lên.", 0, 500),
+    ("first_quest", "Errand Runner", "Người Chạy Việc", "quest",
+     "Hoàn thành Quest đầu tiên.", 200, 50),
+]
