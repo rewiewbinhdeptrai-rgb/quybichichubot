@@ -47,11 +47,25 @@ import error_handler
 from config import ICONS, DB_PATH
 import i18n
 import os
+import shutil
 
 # Lệnh /download_data chỉ được đăng ký trong server của bot và chỉ admin
 # này mới gọi được — không liên quan gameplay, chỉ phục vụ vận hành/backup.
 BOT_HOME_GUILD_ID = 1530517263046934569
 DATA_ADMIN_USER_ID = 1530490044098285711
+
+# Ảnh banner đầu khung /menu (mục 52-54 — nhận diện hình ảnh thống nhất cho
+# UI). Chỉ cần đính kèm (file=...) MỘT lần lúc gửi tin nhắn /menu ban đầu:
+# các lượt bấm nút/Select sau đó chỉ edit_message() lại embed/view trên cùng
+# message đó, và discord.py giữ nguyên attachment cũ nếu không truyền lại
+# tham số attachments — nên ảnh vẫn hiển thị xuyên suốt mà không cần re-upload.
+MENU_BANNER_PATH = os.path.join(os.path.dirname(__file__), "..", "assets", "menu_banner.jpg")
+MENU_BANNER_FILENAME = "menu_banner.jpg"
+
+
+def menu_banner_file() -> discord.File:
+    """Tạo mới 1 discord.File cho banner mỗi lần gửi (File chỉ dùng được 1 lần)."""
+    return discord.File(MENU_BANNER_PATH, filename=MENU_BANNER_FILENAME)
 
 MAIN_CATEGORIES = [
     ("character", "Nhân vật", "Hồ sơ, chỉ số, trạng thái.", ICONS["character"]),
@@ -123,15 +137,26 @@ class SafeView(discord.ui.View):
 # Embeds
 # ---------------------------------------------------------------------------
 
-def build_character_embed(character: dict) -> discord.Embed:
-    embed = discord.Embed(title="🌑 QUỶ BÍ", color=discord.Color.dark_purple())
+def build_character_embed(character: dict) -> list:
+    """Trả về DANH SÁCH 2 Embed: [banner ảnh, thẻ nhân vật].
+
+    Discord luôn vẽ ảnh của set_image() ở CUỐI 1 Embed (sau field), nên
+    không có cách nào đưa ảnh lên trên field chỉ bằng 1 Embed. Để ảnh thật
+    sự nằm ở đầu khung /menu, dùng 2 Embed riêng xếp chồng trong cùng 1 tin
+    nhắn: embed ảnh gửi trước (không title/field) rồi tới embed thông tin
+    nhân vật ngay bên dưới nó. Không còn title chữ "QUỶ BÍ" — ảnh banner
+    đóng vai trò nhận diện đầu khung thay cho chữ."""
+    banner_embed = discord.Embed(color=discord.Color.dark_purple())
+    banner_embed.set_image(url=f"attachment://{MENU_BANNER_FILENAME}")
+
+    embed = discord.Embed(color=discord.Color.dark_purple())
 
     if character is None:
         embed.description = (
             "Bạn chưa có nhân vật nào.\n"
             "Bấm **Tạo nhân vật** bên dưới để bắt đầu."
         )
-        return embed
+        return [banner_embed, embed]
 
     lang = i18n.user_lang(character["user_id"])
     pathway = db.get_pathway(character["pathway_id"]) if character["pathway_id"] else None
@@ -179,7 +204,7 @@ def build_character_embed(character: dict) -> discord.Embed:
     current_location = world_engine.get_current_location(character)
     location_line = current_location["name_en"] if current_location else "Chưa xác định"
     embed.add_field(name=f"{ICONS['location']} {i18n.t('character.location', lang)}", value=location_line, inline=True)
-    return embed
+    return [banner_embed, embed]
 
 
 def build_stub_embed(title: str, icon: str) -> discord.Embed:
@@ -243,7 +268,7 @@ class BackButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         view = self._target_view_factory()
         character = db.get_character(str(interaction.user.id))
-        await interaction.response.edit_message(embed=build_character_embed(character), view=view)
+        await interaction.response.edit_message(embeds=build_character_embed(character), view=view)
 
 
 class MainMenuSelect(discord.ui.Select):
@@ -272,22 +297,22 @@ class MainMenuSelect(discord.ui.Select):
 
         if key == "character":
             embed = build_character_embed(character)
-            await interaction.response.edit_message(embed=embed, view=CharacterMenuView())
+            await interaction.response.edit_message(embeds=embed, view=CharacterMenuView())
         elif key == "pathway":
             embed = build_character_embed(character)
-            await interaction.response.edit_message(embed=embed, view=PathwaySelectView())
+            await interaction.response.edit_message(embeds=embed, view=PathwaySelectView())
         elif key == "settings":
             embed = build_character_embed(character)
-            await interaction.response.edit_message(embed=embed, view=SettingsView())
+            await interaction.response.edit_message(embeds=embed, view=SettingsView())
         elif key == "inventory":
             embed = build_character_embed(character)
-            await interaction.response.edit_message(embed=embed, view=InventoryMenuView())
+            await interaction.response.edit_message(embeds=embed, view=InventoryMenuView())
         elif key == "combat":
             embed = build_character_embed(character)
-            await interaction.response.edit_message(embed=embed, view=CombatMenuView(lang))
+            await interaction.response.edit_message(embeds=embed, view=CombatMenuView(lang))
         elif key == "mysticism":
             embed = build_character_embed(character)
-            await interaction.response.edit_message(embed=embed, view=MysticismMenuView(lang))
+            await interaction.response.edit_message(embeds=embed, view=MysticismMenuView(lang))
         elif key == "world":
             embed = build_world_overview_embed(character)
             await interaction.response.edit_message(embed=embed, view=WorldMenuView(lang))
@@ -355,7 +380,7 @@ class CharacterMenuSelect(discord.ui.Select):
         key = self.values[0]
         if key == "profile":
             embed = build_character_embed(character)
-            await interaction.response.edit_message(embed=embed, view=CharacterMenuView())
+            await interaction.response.edit_message(embeds=embed, view=CharacterMenuView())
         elif key == "characteristics":
             embed, view = build_characteristics_view(character)
             await interaction.response.edit_message(embed=embed, view=view)
@@ -421,7 +446,7 @@ class SwitchCharacterSelect(discord.ui.Select):
             return
         character = db.get_character(user_id)
         embed = build_character_embed(character)
-        await interaction.response.edit_message(embed=embed, view=MainMenuView())
+        await interaction.response.edit_message(embeds=embed, view=MainMenuView())
 
 
 class SwitchCharacterView(SafeView):
@@ -690,7 +715,7 @@ class ChoosePathwayButton(discord.ui.Button):
         db.set_character_pathway(character["character_id"], self.pathway_id, 9)
         character = db.get_character(str(interaction.user.id))
         embed = build_character_embed(character)
-        await interaction.response.edit_message(embed=embed, view=SequenceSelectView(self.pathway_id, 9))
+        await interaction.response.edit_message(embeds=embed, view=SequenceSelectView(self.pathway_id, 9))
 
 
 class SequenceSelect(discord.ui.Select):
@@ -5208,7 +5233,7 @@ class CreateCharacterModal(discord.ui.Modal, title="Tạo nhân vật"):
     async def on_submit(self, interaction: discord.Interaction):
         character = db.create_character(str(interaction.user.id), str(self.name))
         embed = build_character_embed(character)
-        await interaction.response.edit_message(embed=embed, view=MainMenuView())
+        await interaction.response.edit_message(embeds=embed, view=MainMenuView())
 
 
 class NoCharacterView(SafeView):
@@ -5222,20 +5247,21 @@ class NoCharacterView(SafeView):
 
 # ---------------------------------------------------------------------------
 # 📘 Hướng dẫn người chơi mới (.huongdan) — đọc trực tiếp docs/NEW_PLAYER_GUIDE.md
-# và gửi NGUYÊN VĂN nội dung dạng tin nhắn text, không gửi kèm file đính kèm.
+# và hiển thị dạng SÁCH: đóng khung trong 1 Embed, lật từng trang bằng nút
+# bấm Trước/Sau thay vì dội nhiều tin nhắn text dài liên tiếp xuống kênh.
 # Đọc thẳng từ file nên nội dung .huongdan luôn khớp với tài liệu gốc, không
 # cần đồng bộ tay khi tài liệu thay đổi.
 # ---------------------------------------------------------------------------
 
 GUIDE_DOC_PATH = os.path.join(os.path.dirname(__file__), "..", "docs", "NEW_PLAYER_GUIDE.md")
-GUIDE_DOC_CHUNK_BUDGET = 1900  # chừa lề dưới giới hạn 2000 ký tự/tin nhắn thường của Discord
+GUIDE_PAGE_CHAR_BUDGET = 3500  # chừa lề dưới giới hạn 4096 ký tự/description của Embed
 
 
-def _load_guide_doc_chunks() -> list:
-    """Đọc docs/NEW_PLAYER_GUIDE.md và cắt thành nhiều đoạn <= giới hạn ký tự
-    tin nhắn thường của Discord (2000). Ưu tiên cắt tại ranh giới mục
-    "## ..." để không chẻ ngang nội dung; nếu một mục vẫn dài hơn giới hạn,
-    cắt tiếp theo dòng gần nhất."""
+def _load_guide_doc_pages() -> list:
+    """Đọc docs/NEW_PLAYER_GUIDE.md và cắt thành nhiều trang <= giới hạn ký
+    tự description của Embed (4096). Ưu tiên cắt tại ranh giới mục
+    "## ..." để mỗi trang là 1-2 mục trọn vẹn, không chẻ ngang nội dung;
+    nếu một mục vẫn dài hơn giới hạn, cắt tiếp theo dòng gần nhất."""
     if not os.path.exists(GUIDE_DOC_PATH):
         return []
 
@@ -5246,31 +5272,90 @@ def _load_guide_doc_chunks() -> list:
     if not sections:
         sections = [raw.strip()]
 
-    chunks = []
+    pages = []
     current = ""
     for section in sections:
-        while len(section) > GUIDE_DOC_CHUNK_BUDGET:
-            cut = section.rfind("\n", 0, GUIDE_DOC_CHUNK_BUDGET)
-            cut = cut if cut > 0 else GUIDE_DOC_CHUNK_BUDGET
+        while len(section) > GUIDE_PAGE_CHAR_BUDGET:
+            cut = section.rfind("\n", 0, GUIDE_PAGE_CHAR_BUDGET)
+            cut = cut if cut > 0 else GUIDE_PAGE_CHAR_BUDGET
             piece, section = section[:cut], section[cut:]
             if current:
-                chunks.append(current)
+                pages.append(current)
                 current = ""
-            chunks.append(piece)
+            pages.append(piece)
 
         candidate = f"{current}\n\n{section}" if current else section
-        if current and len(candidate) > GUIDE_DOC_CHUNK_BUDGET:
-            chunks.append(current)
+        if current and len(candidate) > GUIDE_PAGE_CHAR_BUDGET:
+            pages.append(current)
             current = section
         else:
             current = candidate
     if current:
-        chunks.append(current)
+        pages.append(current)
 
-    return chunks
+    return pages
 
 
-GUIDE_DOC_CHUNKS = _load_guide_doc_chunks()
+GUIDE_DOC_PAGES = _load_guide_doc_pages()
+
+
+class GuideBookView(discord.ui.View):
+    """View phân trang kiểu sách cho .huongdan — mỗi lần chỉ hiện 1 trang
+    trong 1 Embed (đóng khung), lật trang bằng nút Trước/Sau thay vì dội
+    một loạt tin nhắn text dài xuống kênh. Chỉ người gõ lệnh mới lật được
+    trang của chính mình (interaction_check theo author_id), người khác
+    bấm vào sẽ được nhắc tự gõ `.huongdan` để mở bản riêng."""
+
+    def __init__(self, author_id: int, pages: list):
+        super().__init__(timeout=300)
+        self.author_id = author_id
+        self.pages = pages
+        self.page_index = 0
+        self.message: discord.Message | None = None
+        self._sync_buttons()
+
+    def build_embed(self) -> discord.Embed:
+        embed = discord.Embed(
+            title="📘 QUỶ BÍ — HƯỚNG DẪN NGƯỜI MỚI",
+            description=self.pages[self.page_index],
+            color=discord.Color.dark_purple(),
+        )
+        embed.set_footer(text=f"Trang {self.page_index + 1}/{len(self.pages)}")
+        return embed
+
+    def _sync_buttons(self) -> None:
+        self.prev_button.disabled = self.page_index == 0
+        self.next_button.disabled = self.page_index >= len(self.pages) - 1
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message(
+                "🔒 Đây không phải hướng dẫn bạn mở — gõ `.huongdan` để mở bản của riêng bạn.",
+                ephemeral=True,
+            )
+            return False
+        return True
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+        if self.message is not None:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+
+    @discord.ui.button(label="◀ Trước", style=discord.ButtonStyle.secondary)
+    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page_index = max(0, self.page_index - 1)
+        self._sync_buttons()
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="Sau ▶", style=discord.ButtonStyle.secondary)
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page_index = min(len(self.pages) - 1, self.page_index + 1)
+        self._sync_buttons()
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
 
 # ---------------------------------------------------------------------------
@@ -5283,17 +5368,17 @@ class MenuCog(commands.Cog):
 
     @commands.command(name="huongdan")
     async def huongdan_text(self, ctx: commands.Context):
-        """Lệnh dạng text (.huongdan) — gửi nguyên nội dung
-        docs/NEW_PLAYER_GUIDE.md dưới dạng tin nhắn text (không gửi file đính
-        kèm), chia nhỏ theo giới hạn 2000 ký tự/tin nhắn của Discord. Dùng
-        lệnh text thay vì slash command để không lẫn vào danh sách
-        autocomplete slash command chung của các bot khác trong server."""
-        if not GUIDE_DOC_CHUNKS:
+        """Lệnh dạng text (.huongdan) — mở docs/NEW_PLAYER_GUIDE.md dạng
+        sách: đóng khung trong 1 Embed, lật từng trang bằng nút Trước/Sau
+        thay vì dội một loạt tin nhắn text dài xuống kênh. Dùng lệnh text
+        thay vì slash command để không lẫn vào danh sách autocomplete slash
+        command chung của các bot khác trong server."""
+        if not GUIDE_DOC_PAGES:
             await ctx.send("Chưa có nội dung hướng dẫn (docs/NEW_PLAYER_GUIDE.md không tồn tại).")
             return
 
-        for chunk in GUIDE_DOC_CHUNKS:
-            await ctx.send(chunk)
+        view = GuideBookView(ctx.author.id, GUIDE_DOC_PAGES)
+        view.message = await ctx.send(embed=view.build_embed(), view=view)
 
     @app_commands.command(name="menu", description="Mở giao diện chính của Quỷ Bí")
     async def menu(self, interaction: discord.Interaction):
@@ -5304,7 +5389,11 @@ class MenuCog(commands.Cog):
 
         embed = build_character_embed(character)
         view = MainMenuView(lang) if character else NoCharacterView()
-        await interaction.response.send_message(embed=embed, view=view)
+        # Đính kèm ảnh banner CHỈ ở đây — lần gửi tin nhắn /menu ban đầu.
+        # Mọi lượt bấm nút/Select sau đó chỉ edit_message() lại trên cùng
+        # message này (xem build_character_embed), nên ảnh vẫn còn nguyên mà
+        # không cần re-upload mỗi lần.
+        await interaction.response.send_message(embeds=embed, view=view, file=menu_banner_file())
 
     @app_commands.command(name="end_season", description="[Admin] Chốt Mùa hiện tại, chụp Ranking, mở Mùa mới")
     @app_commands.describe(new_season_name="Tên Mùa mới, vd: 'Mùa 2'")
@@ -5343,6 +5432,67 @@ class MenuCog(commands.Cog):
         await interaction.response.send_message(
             content="📦 File dữ liệu hiện tại của bot:",
             file=discord.File(DB_PATH),
+            ephemeral=True,
+        )
+
+    @app_commands.command(name="upload_data", description="[Admin] Khôi phục dữ liệu bot từ file .db đã tải trước đó")
+    @app_commands.describe(file="File dữ liệu (.db) đã tải bằng /download_data")
+    @app_commands.guilds(discord.Object(id=BOT_HOME_GUILD_ID))
+    @app_commands.default_permissions(administrator=True)
+    async def upload_data(self, interaction: discord.Interaction, file: discord.Attachment):
+        # Giới hạn cứng: chỉ đúng tài khoản admin này mới thực sự dùng được,
+        # kể cả nếu ai khác trong server cũng có quyền Administrator.
+        if interaction.user.id != DATA_ADMIN_USER_ID:
+            embed = error_handler.player_error_embed("invalid_target")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        if not file.filename.lower().endswith((".db", ".sqlite", ".sqlite3")):
+            await interaction.response.send_message(
+                "❌ File không hợp lệ. Cần đúng file `.db` được tải bằng lệnh `/download_data`.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        # Backup file hiện tại trước khi ghi đè — nếu file upload lỗi/hỏng thì
+        # vẫn khôi phục lại được, không để mất dữ liệu đang chạy (mục 50: không
+        # được làm mất dữ liệu Character đang có).
+        backup_path = f"{DB_PATH}.bak"
+        if os.path.exists(DB_PATH):
+            shutil.copyfile(DB_PATH, backup_path)
+
+        try:
+            raw = await file.read()
+            with open(DB_PATH, "wb") as f:
+                f.write(raw)
+
+            # get_conn() trong database.py mở connection SQLite mới cho MỖI lần
+            # truy vấn (không giữ 1 connection dùng chung), nên file vừa ghi đè
+            # ở trên sẽ được dùng ngay từ lệnh tiếp theo — không cần restart bot.
+            #
+            # Chạy lại init_db() để migrate/seed dữ liệu tĩnh (Pathway, Item,
+            # Effect...) lên phiên bản schema hiện tại của code, TUYỆT ĐỐI không
+            # đụng tới dữ liệu User/Character đã có trong file vừa khôi phục.
+            db.init_db()
+        except Exception:
+            # Lỗi khi ghi/migrate -> khôi phục lại file cũ, tránh bot chạy với
+            # 1 DB dở dang.
+            if os.path.exists(backup_path):
+                shutil.copyfile(backup_path, DB_PATH)
+            await interaction.followup.send(
+                "❌ Khôi phục thất bại, dữ liệu cũ đã được giữ nguyên. Kiểm tra lại file rồi thử lại.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.followup.send(
+            "✅ Đã khôi phục dữ liệu thành công — bot đang dùng file vừa tải lên "
+            "ngay lập tức, không cần restart.\n"
+            "Từ giờ mọi hoạt động của người chơi (đánh quái, mua bán, lên Sequence...) "
+            "tiếp tục được ghi thẳng vào file này theo thời gian thực, nên lần "
+            "`/download_data` kế tiếp luôn là bản mới nhất, không lo lệch dữ liệu.",
             ephemeral=True,
         )
 
