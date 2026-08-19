@@ -9,6 +9,8 @@ Nguyên tắc:
   Sequence chưa đạt hiển thị khóa 🔒, không cho bypass advancement.
 - Engine (database.py) là nguồn sự thật; view chỉ đọc/hiển thị.
 """
+import re
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -135,13 +137,13 @@ def build_character_embed(character: dict) -> discord.Embed:
     pathway = db.get_pathway(character["pathway_id"]) if character["pathway_id"] else None
     seq_name = None
     if pathway:
-        seqs = {s["sequence_number"]: s["name_en"] for s in db.list_sequences(pathway["pathway_id"])}
+        seqs = {s["sequence_number"]: s["name_vi"] for s in db.list_sequences(pathway["pathway_id"])}
         seq_name = seqs.get(character["sequence_number"])
 
     embed.add_field(name=f"{ICONS['character']} Nhân vật", value=character["name"], inline=False)
 
     if pathway:
-        pathway_line = f"{pathway['icon']} {pathway['name_en']}"
+        pathway_line = f"{pathway['icon']} {pathway['name_vi']}"
         seq_line = f"Sequence {character['sequence_number']}" + (f" — {seq_name}" if seq_name else "")
     else:
         pathway_line = "Chưa chọn"
@@ -206,7 +208,7 @@ def build_ability_menu_embed(character: dict) -> discord.Embed:
     abilities = db.list_unlocked_abilities(character["pathway_id"], character["sequence_number"])
 
     embed = discord.Embed(
-        title=f"{icon} NĂNG LỰC — {pathway['name_en']}",
+        title=f"{icon} NĂNG LỰC — {pathway['name_vi']}",
         description=f"Sequence hiện tại: {character['sequence_number']}. "
                      f"Đã mở khóa {len(abilities)} Ability (Sequence đã đi qua trở lên).",
         color=discord.Color.purple(),
@@ -216,7 +218,7 @@ def build_ability_menu_embed(character: dict) -> discord.Embed:
     else:
         for a in abilities:
             embed.add_field(
-                name=f"Sequence {a['sequence_number']} — {a['name_en']}",
+                name=f"Sequence {a['sequence_number']} — {a['name_vi']}",
                 value=f"Cost: {a['cost']} Spirituality · Damage x{a['damage_multiplier']}",
                 inline=False,
             )
@@ -573,7 +575,7 @@ def build_characteristics_view(character: dict):
         for c in owned:
             state_label = "🟢 Đang giữ" if c["state"] == "stored" else "⚪ Đã tiêu thụ"
             embed.add_field(
-                name=f"{c['name_en']} (Sequence {c['sequence_number']})",
+                name=f"{c['name_vi']} (Sequence {c['sequence_number']})",
                 value=f"Stability: {c['stability']}% | {state_label} | Nguồn: {c['source']}",
                 inline=False,
             )
@@ -585,7 +587,7 @@ class ConsumeCharacteristicSelect(discord.ui.Select):
         stored = [c for c in owned if c["state"] == "stored"]
         options = [
             discord.SelectOption(
-                label=f"{c['name_en']} (Sequence {c['sequence_number']})",
+                label=f"{c['name_vi']} (Sequence {c['sequence_number']})",
                 value=str(c["id"]),
                 description=f"Stability {c['stability']}% — Tiêu thụ để +5 Spirituality tối đa",
             )
@@ -606,7 +608,7 @@ class ConsumeCharacteristicSelect(discord.ui.Select):
         embed.add_field(
             name="Kết quả tiêu thụ",
             value=(
-                f"✅ Đã tiêu thụ {result['characteristic']['name_en']} — "
+                f"✅ Đã tiêu thụ {result['characteristic']['name_vi']} — "
                 f"Spirituality tối đa: {result['spirituality_max']}"
             ),
             inline=False,
@@ -631,8 +633,8 @@ class PathwaySelect(discord.ui.Select):
         pathways = db.list_pathways()
         options = [
             discord.SelectOption(
-                label=p["name_en"], value=p["pathway_id"],
-                description=f"Title: {p['title_en']}", emoji=p["icon"],
+                label=p["name_vi"], value=p["pathway_id"],
+                description=f"Title: {p['title_vi']}", emoji=p["icon"],
             )
             for p in pathways
         ]
@@ -650,8 +652,8 @@ class PathwaySelect(discord.ui.Select):
             current_sequence = 9
 
         embed = discord.Embed(
-            title=f"{pathway['icon']} {pathway['name_en'].upper()} PATHWAY",
-            description=f"Title: **{pathway['title_en']}**\nSequence 9 → 0",
+            title=f"{pathway['icon']} {pathway['name_vi'].upper()} PATHWAY",
+            description=f"Title: **{pathway['title_vi']}**\nSequence 9 → 0",
             color=discord.Color.dark_purple(),
         )
         view = SequenceSelectView(pathway_id, current_sequence)
@@ -700,7 +702,7 @@ class SequenceSelect(discord.ui.Select):
         options = []
         for s in sequences:
             unlocked = current_sequence is not None and s["sequence_number"] >= current_sequence
-            label = f"{s['sequence_number']} — {s['name_en']}"
+            label = f"{s['sequence_number']} — {s['name_vi']}"
             emoji = None if unlocked else "🔒"
             options.append(
                 discord.SelectOption(
@@ -717,7 +719,7 @@ class SequenceSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         chosen = int(self.values[0])
         pathway = db.get_pathway(self.pathway_id)
-        sequences = {s["sequence_number"]: s["name_en"] for s in db.list_sequences(self.pathway_id)}
+        sequences = {s["sequence_number"]: s["name_vi"] for s in db.list_sequences(self.pathway_id)}
 
         unlocked = self.current_sequence is not None and chosen >= self.current_sequence
         if not unlocked:
@@ -735,7 +737,7 @@ class SequenceSelect(discord.ui.Select):
                 title=f"🔢 SEQUENCE {chosen} — {sequences[chosen]}",
                 color=discord.Color.purple(),
             )
-            embed.add_field(name=f"{ICONS['pathway']} Pathway", value=pathway["name_en"], inline=True)
+            embed.add_field(name=f"{ICONS['pathway']} Pathway", value=pathway["name_vi"], inline=True)
 
             character = db.get_character(str(interaction.user.id))
             is_current = (
@@ -748,7 +750,7 @@ class SequenceSelect(discord.ui.Select):
                 potion_next = db.get_potion(self.pathway_id, chosen - 1) if chosen > 0 else None
                 embed.add_field(
                     name=f"{ICONS['potion']} Potion đang dùng",
-                    value=potion["name_en"] if potion else "Chưa uống",
+                    value=potion["name_vi"] if potion else "Chưa uống",
                     inline=True,
                 )
                 bar = "█" * (progress["digestion"] // 10) + "░" * (10 - progress["digestion"] // 10)
@@ -766,7 +768,7 @@ class SequenceSelect(discord.ui.Select):
                 embed.add_field(
                     name=f"{ICONS['ability']} Ability",
                     value=(
-                        f"**{ability['name_en']}**\n"
+                        f"**{ability['name_vi']}**\n"
                         f"Cost: {ability['cost']} Spirituality · "
                         f"Damage x{ability['damage_multiplier']}"
                     ),
@@ -861,7 +863,7 @@ def build_artifact_list_view(character: dict):
             known = [s for s in o["discovered_stages"].split(",") if s]
             uses = "Vô hạn" if o["uses_remaining"] == -1 else str(o["uses_remaining"])
             embed.add_field(
-                name=f"{o['name_en']} (#{o['id']}) — {'★' * o['risk_stars']}",
+                name=f"{o['name_vi']} (#{o['id']}) — {'★' * o['risk_stars']}",
                 value=f"Grade: {o['grade']} | Đã khám phá: {len(known)}/3 | Lượt dùng còn: {uses}",
                 inline=False,
             )
@@ -872,7 +874,7 @@ class ArtifactSelect(discord.ui.Select):
     def __init__(self, owned: list):
         options = [
             discord.SelectOption(
-                label=f"{o['name_en']} (#{o['id']})",
+                label=f"{o['name_vi']} (#{o['id']})",
                 value=str(o["id"]),
                 description=f"{o['grade']} · {'★' * o['risk_stars']}"[:100],
             )
@@ -975,7 +977,7 @@ def build_bag_view(character: dict):
         lines = []
         for it in items:
             tag = {"consumable": "🧪", "equipment": "⚔️", "material": "🔹"}.get(it["type"], "•")
-            lines.append(f"{tag} **{it['name_en']}** ×{it['quantity']} — {it['description']}")
+            lines.append(f"{tag} **{it['name_vi']}** ×{it['quantity']} — {it['description']}")
         embed.description = "\n".join(lines)
     return embed, BagActionsView(character, items)
 
@@ -983,7 +985,7 @@ def build_bag_view(character: dict):
 class UseItemSelect(discord.ui.Select):
     def __init__(self, consumables: list):
         options = [
-            discord.SelectOption(label=f"{it['name_en']} (×{it['quantity']})", value=it["item_id"])
+            discord.SelectOption(label=f"{it['name_vi']} (×{it['quantity']})", value=it["item_id"])
             for it in consumables
         ]
         super().__init__(placeholder="🧪 Dùng vật phẩm", options=options, row=0)
@@ -999,7 +1001,7 @@ class UseItemSelect(discord.ui.Select):
         embed, view = build_bag_view(character)
         embed.add_field(
             name="Kết quả",
-            value=f"✅ Đã dùng {item['name_en']}. HP: {new_hp}/{character['hp_max']} · "
+            value=f"✅ Đã dùng {item['name_vi']}. HP: {new_hp}/{character['hp_max']} · "
                   f"Spirituality: {new_sp}/{character['spirituality_max']}",
             inline=False,
         )
@@ -1027,7 +1029,7 @@ def build_equipment_view(character: dict):
         label = "Vũ khí" if slot == "weapon" else "Giáp"
         embed.add_field(
             name=label,
-            value=f"{item['name_en']} ({item['modifier_key']} {item['modifier_value']:+g}%)" if item else "Trống",
+            value=f"{item['name_vi']} ({item['modifier_key']} {item['modifier_value']:+g}%)" if item else "Trống",
             inline=True,
         )
     return embed, EquipmentActionsView(character, equipped)
@@ -1036,7 +1038,7 @@ def build_equipment_view(character: dict):
 class EquipSelect(discord.ui.Select):
     def __init__(self, equippable: list):
         options = [
-            discord.SelectOption(label=f"{it['name_en']} ({it['equip_slot']})", value=it["item_id"])
+            discord.SelectOption(label=f"{it['name_vi']} ({it['equip_slot']})", value=it["item_id"])
             for it in equippable
         ]
         super().__init__(placeholder="⚔️ Trang bị vật phẩm", options=options, row=0)
@@ -1050,7 +1052,7 @@ class EquipSelect(discord.ui.Select):
             return
         character = db.get_character(str(interaction.user.id))
         embed, view = build_equipment_view(character)
-        embed.add_field(name="Kết quả", value=f"✅ Đã trang bị {item['name_en']}.", inline=False)
+        embed.add_field(name="Kết quả", value=f"✅ Đã trang bị {item['name_vi']}.", inline=False)
         await interaction.response.edit_message(embed=embed, view=view)
 
 
@@ -1103,11 +1105,11 @@ def build_potion_view(character: dict):
     pathway = db.get_pathway(character["pathway_id"])
 
     embed = discord.Embed(title=f"{ICONS['potion']} MA DƯỢC", color=discord.Color.purple())
-    embed.add_field(name="Pathway", value=f"{pathway['icon']} {pathway['name_en']}", inline=True)
+    embed.add_field(name="Pathway", value=f"{pathway['icon']} {pathway['name_vi']}", inline=True)
     embed.add_field(name="Sequence hiện tại", value=str(character["sequence_number"]), inline=True)
     embed.add_field(
         name="Potion đang dùng",
-        value=potion["name_en"] if potion else "Chưa uống (idle)",
+        value=potion["name_vi"] if potion else "Chưa uống (idle)",
         inline=False,
     )
     bar = "█" * (progress["digestion"] // 10) + "░" * (10 - progress["digestion"] // 10)
@@ -1119,11 +1121,11 @@ def build_potion_view(character: dict):
         stock = potions_engine.get_stock(character, target_sequence)
         recipe = db.get_potion_recipe(character["pathway_id"], target_sequence)
         recipe_lines = [
-            f"• {r['name_en']} x{r['quantity']} (có: {db.get_inventory_quantity(character['character_id'], r['item_id'])})"
+            f"• {r['name_vi']} x{r['quantity']} (có: {db.get_inventory_quantity(character['character_id'], r['item_id'])})"
             for r in recipe
         ]
         embed.add_field(
-            name=f"🧪 Công thức: {target_potion['name_en'] if target_potion else '???'}",
+            name=f"🧪 Công thức: {target_potion['name_vi'] if target_potion else '???'}",
             value=(
                 "\n".join(recipe_lines) if recipe_lines else "Chưa có công thức."
             ) + f"\n\nĐang sở hữu: {stock} | Tỉ lệ hỏng khi Chế tạo: {target_potion['craft_risk']}%"
@@ -1134,7 +1136,7 @@ def build_potion_view(character: dict):
     if progress["status"] == "ready" and potion:
         materials = ritual_engine.get_materials(character["pathway_id"], progress["potion_target_sequence"])
         material_lines = [
-            f"• {m['name_en']} x{m['quantity']} (có: {db.get_inventory_quantity(character['character_id'], m['item_id'])})"
+            f"• {m['name_vi']} x{m['quantity']} (có: {db.get_inventory_quantity(character['character_id'], m['item_id'])})"
             for m in materials
         ]
         chance = ritual_engine.compute_success_chance(character, potion)
@@ -1172,10 +1174,10 @@ class CraftPotionButton(discord.ui.Button):
         character = db.get_character(str(interaction.user.id))
         embed, view = build_potion_view(character)
         if result["success"]:
-            note = f"✅ Chế tạo thành công: {result['potion']['name_en']}"
+            note = f"✅ Chế tạo thành công: {result['potion']['name_vi']}"
         else:
             note = (
-                f"☠️ Chế tạo thất bại — {result['potion']['name_en']} hỏng, "
+                f"☠️ Chế tạo thất bại — {result['potion']['name_vi']} hỏng, "
                 "mất nguyên liệu và dính Potion Instability."
             )
         embed.add_field(name="Kết quả Chế tạo", value=note, inline=False)
@@ -1248,7 +1250,7 @@ class AdvancementButton(discord.ui.Button):
             if gained:
                 embed.add_field(
                     name=f"{ICONS['characteristic']} Beyonder Characteristic mới",
-                    value=gained["name_en"],
+                    value=gained["name_vi"],
                     inline=False,
                 )
         incident = result.get("incident")
@@ -1467,7 +1469,7 @@ class AbilitySelect(discord.ui.Select):
         else:
             abilities_options = [
                 discord.SelectOption(
-                    label=f"{a['name_en']} (Spirituality {a['cost']})",
+                    label=f"{a['name_vi']} (Spirituality {a['cost']})",
                     value=a["ability_id"],
                 )
                 for a in abilities
@@ -1709,7 +1711,7 @@ class DungeonAbilitySelect(discord.ui.Select):
             abilities_options = [discord.SelectOption(label="Chưa có Ability nào mở khóa", value="none")]
         else:
             abilities_options = [
-                discord.SelectOption(label=f"{a['name_en']} (Spirituality {a['cost']})", value=a["ability_id"])
+                discord.SelectOption(label=f"{a['name_vi']} (Spirituality {a['cost']})", value=a["ability_id"])
                 for a in abilities
             ]
         super().__init__(placeholder="✨ Dùng Ability", options=abilities_options, row=2)
@@ -1970,7 +1972,7 @@ class PvPAbilitySelect(discord.ui.Select):
         else:
             abilities_options = [
                 discord.SelectOption(
-                    label=f"{a['name_en']} (Spirituality {a['cost']})",
+                    label=f"{a['name_vi']} (Spirituality {a['cost']})",
                     value=a["ability_id"],
                 )
                 for a in abilities
@@ -2581,7 +2583,7 @@ class GiftItemSelect(discord.ui.Select):
     def __init__(self, npc_id: str, inventory: list):
         self._npc_id = npc_id
         options = [
-            discord.SelectOption(label=f"{i['name_en']} (x{i['quantity']})", value=i["item_id"])
+            discord.SelectOption(label=f"{i['name_vi']} (x{i['quantity']})", value=i["item_id"])
             for i in inventory
         ] or [discord.SelectOption(label="Túi đồ trống", value="__empty__")]
         super().__init__(placeholder="🎁 Chọn quà để tặng", options=options, row=1)
@@ -2601,7 +2603,7 @@ class GiftItemSelect(discord.ui.Select):
         favorite_note = " 💖 Đúng món họ thích!" if result["is_favorite"] else ""
         embed.add_field(
             name="Kết quả",
-            value=f"✅ Đã tặng **{result['item']['name_en']}**. Trust +{result['trust_gain']}.{favorite_note}",
+            value=f"✅ Đã tặng **{result['item']['name_vi']}**. Trust +{result['trust_gain']}.{favorite_note}",
             inline=False,
         )
         if result.get("dangerous_event"):
@@ -2880,7 +2882,7 @@ def build_quest_detail_view(character: dict, quest_id: str):
     reward_lines = [f"{q['reward_money']} Bảng", f"{q['reward_exp']} EXP"]
     if q["reward_item_id"]:
         item = db.get_item(q["reward_item_id"])
-        reward_lines.append(item["name_en"] if item else q["reward_item_id"])
+        reward_lines.append(item["name_vi"] if item else q["reward_item_id"])
     embed.add_field(name="Phần thưởng", value=" · ".join(reward_lines), inline=False)
 
     return embed, QuestDetailView(quest_id, status)
@@ -3896,7 +3898,7 @@ def build_market_view(character: dict):
         embed.add_field(name="—", value="Chợ hiện không có ai rao bán.", inline=False)
     for l in listings:
         embed.add_field(
-            name=f"#{l['listing_id']} — {l['name_en']} ×{l['quantity']}",
+            name=f"#{l['listing_id']} — {l['name_vi']} ×{l['quantity']}",
             value=f"Giá: {l['price_per_unit']:,}/cái (tổng {l['price_per_unit']*l['quantity']:,} Bảng) · Người bán: {l['seller_name']}",
             inline=False,
         )
@@ -3907,7 +3909,7 @@ class BuyListingSelect(discord.ui.Select):
     def __init__(self, listings: list):
         options = [
             discord.SelectOption(
-                label=f"#{l['listing_id']} {l['name_en']} ×{l['quantity']}",
+                label=f"#{l['listing_id']} {l['name_vi']} ×{l['quantity']}",
                 value=str(l["listing_id"]),
                 description=f"{l['price_per_unit']*l['quantity']:,} Bảng"[:100],
             )
@@ -3920,7 +3922,7 @@ class BuyListingSelect(discord.ui.Select):
         character = db.get_character(str(interaction.user.id))
         try:
             listing = economy_engine.buy_from_market(character["character_id"], int(self.values[0]))
-            message = f"✅ Đã mua **{listing['name_en']}** ×{listing['quantity']}."
+            message = f"✅ Đã mua **{listing['name_vi']}** ×{listing['quantity']}."
         except economy_engine.EconomyError as e:
             await interaction.response.send_message(f"⚠️ {e}", ephemeral=True)
             return
@@ -3966,7 +3968,7 @@ class SellItemPickSelect(discord.ui.Select):
 
     def __init__(self, items: list):
         options = [
-            discord.SelectOption(label=f"{it['name_en']} (×{it['quantity']})", value=it["item_id"])
+            discord.SelectOption(label=f"{it['name_vi']} (×{it['quantity']})", value=it["item_id"])
             for it in items
         ]
         super().__init__(placeholder="🏪 Chọn vật phẩm cần rao bán", options=options, row=0)
@@ -3975,7 +3977,7 @@ class SellItemPickSelect(discord.ui.Select):
     @error_handler.safe_interaction(lambda: EconomyMenuView())
     async def callback(self, interaction: discord.Interaction):
         item = self._items_by_id[self.values[0]]
-        await interaction.response.send_modal(SellItemModal(item["item_id"], item["name_en"]))
+        await interaction.response.send_modal(SellItemModal(item["item_id"], item["name_vi"]))
 
 
 class SellItemPickView(SafeView):
@@ -4018,7 +4020,7 @@ class CancelListingSelect(discord.ui.Select):
     def __init__(self, my_listings: list):
         options = [
             discord.SelectOption(
-                label=f"#{l['listing_id']} {l['name_en']} ×{l['quantity']}", value=str(l["listing_id"])
+                label=f"#{l['listing_id']} {l['name_vi']} ×{l['quantity']}", value=str(l["listing_id"])
             )
             for l in my_listings
         ] or [discord.SelectOption(label="(Bạn chưa rao bán gì)", value="_none")]
@@ -4065,7 +4067,7 @@ class MyListingsButton(discord.ui.Button):
             embed.description = "Bạn hiện không có tin rao bán nào."
         for l in my_listings:
             embed.add_field(
-                name=f"#{l['listing_id']} — {l['name_en']} ×{l['quantity']}",
+                name=f"#{l['listing_id']} — {l['name_vi']} ×{l['quantity']}",
                 value=f"Giá: {l['price_per_unit']:,}/cái (tổng {l['price_per_unit']*l['quantity']:,} Bảng)",
                 inline=False,
             )
@@ -4188,7 +4190,7 @@ def build_auction_view(character: dict):
     for a in auctions:
         bidder = " · Đang có người ra giá" if a["highest_bidder_character_id"] else " · Chưa có ai ra giá"
         embed.add_field(
-            name=f"#{a['auction_id']} — {a['name_en']} ×{a['quantity']}",
+            name=f"#{a['auction_id']} — {a['name_vi']} ×{a['quantity']}",
             value=(
                 f"Giá hiện tại: {a['current_price']:,} Bảng · Kết thúc: {a['ends_at']} · "
                 f"Người bán: {a['seller_name']}{bidder}"
@@ -4202,7 +4204,7 @@ class BidAuctionSelect(discord.ui.Select):
     def __init__(self, auctions: list):
         options = [
             discord.SelectOption(
-                label=f"#{a['auction_id']} {a['name_en']} ×{a['quantity']}",
+                label=f"#{a['auction_id']} {a['name_vi']} ×{a['quantity']}",
                 value=str(a["auction_id"]),
                 description=f"Giá hiện tại {a['current_price']:,} Bảng"[:100],
             )
@@ -4281,7 +4283,7 @@ class CreateAuctionPickSelect(discord.ui.Select):
 
     def __init__(self, items: list):
         options = [
-            discord.SelectOption(label=f"{it['name_en']} (×{it['quantity']})", value=it["item_id"])
+            discord.SelectOption(label=f"{it['name_vi']} (×{it['quantity']})", value=it["item_id"])
             for it in items
         ]
         super().__init__(placeholder="🔨 Chọn vật phẩm cần đấu giá", options=options, row=0)
@@ -4290,7 +4292,7 @@ class CreateAuctionPickSelect(discord.ui.Select):
     @error_handler.safe_interaction(lambda: EconomyMenuView())
     async def callback(self, interaction: discord.Interaction):
         item = self._items_by_id[self.values[0]]
-        await interaction.response.send_modal(CreateAuctionModal(item["item_id"], item["name_en"]))
+        await interaction.response.send_modal(CreateAuctionModal(item["item_id"], item["name_vi"]))
 
 
 class CreateAuctionPickView(SafeView):
@@ -4333,7 +4335,7 @@ class CancelAuctionSelect(discord.ui.Select):
     def __init__(self, my_auctions: list):
         cancellable = [a for a in my_auctions if a["highest_bidder_character_id"] is None]
         options = [
-            discord.SelectOption(label=f"#{a['auction_id']} {a['name_en']} ×{a['quantity']}", value=str(a["auction_id"]))
+            discord.SelectOption(label=f"#{a['auction_id']} {a['name_vi']} ×{a['quantity']}", value=str(a["auction_id"]))
             for a in cancellable
         ] or [discord.SelectOption(label="(Không có phiên có thể huỷ)", value="_none")]
         super().__init__(placeholder="❌ Huỷ phiên đấu giá", options=options, row=0, disabled=not cancellable)
@@ -4377,7 +4379,7 @@ class MyAuctionsButton(discord.ui.Button):
         for a in my_auctions:
             bidder = "Đang có người ra giá (không huỷ được)" if a["highest_bidder_character_id"] else "Chưa có ai ra giá"
             embed.add_field(
-                name=f"#{a['auction_id']} — {a['name_en']} ×{a['quantity']}",
+                name=f"#{a['auction_id']} — {a['name_vi']} ×{a['quantity']}",
                 value=f"Giá hiện tại: {a['current_price']:,} Bảng · {bidder}",
                 inline=False,
             )
@@ -4458,7 +4460,7 @@ class DirectTradeItemPickSelect(discord.ui.Select):
 
     def __init__(self, target_character_id: int, target_name: str, items: list):
         options = [
-            discord.SelectOption(label=f"{it['name_en']} (×{it['quantity']})", value=it["item_id"])
+            discord.SelectOption(label=f"{it['name_vi']} (×{it['quantity']})", value=it["item_id"])
             for it in items
         ]
         super().__init__(placeholder="🤝 Chọn vật phẩm cần bán", options=options, row=0)
@@ -4470,7 +4472,7 @@ class DirectTradeItemPickSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         item = self._items_by_id[self.values[0]]
         await interaction.response.send_modal(
-            DirectTradeModal(self.target_character_id, self.target_name, item["item_id"], item["name_en"])
+            DirectTradeModal(self.target_character_id, self.target_name, item["item_id"], item["name_vi"])
         )
 
 
@@ -4840,7 +4842,7 @@ def build_house_storage_view(character: dict):
         "house.storage_description", lang, tier=house["tier"], slots=house["storage_slots"]
     )
     if house["storage"]:
-        lines = [f"{s['name_en']} ×{s['quantity']}" for s in house["storage"]]
+        lines = [f"{s['name_vi']} ×{s['quantity']}" for s in house["storage"]]
         embed.add_field(name=i18n.t("house.storage_field", lang), value="\n".join(lines), inline=False)
     else:
         embed.add_field(name=i18n.t("house.storage_field", lang), value=i18n.t("house.storage_empty", lang), inline=False)
@@ -4911,7 +4913,7 @@ class StoreItemPickSelect(discord.ui.Select):
     def __init__(self, items: list, lang: str = None):
         self.lang = lang or i18n.DEFAULT_LANG
         options = [
-            discord.SelectOption(label=f"{it['name_en']} (×{it['quantity']})", value=it["item_id"])
+            discord.SelectOption(label=f"{it['name_vi']} (×{it['quantity']})", value=it["item_id"])
             for it in items
         ]
         super().__init__(placeholder=i18n.t("house.store_pick_placeholder", self.lang), options=options, row=0)
@@ -4920,7 +4922,7 @@ class StoreItemPickSelect(discord.ui.Select):
     @error_handler.safe_interaction(lambda: HouseMenuView())
     async def callback(self, interaction: discord.Interaction):
         item = self._items_by_id[self.values[0]]
-        await interaction.response.send_modal(StoreItemModal(item["item_id"], item["name_en"], self.lang))
+        await interaction.response.send_modal(StoreItemModal(item["item_id"], item["name_vi"], self.lang))
 
 
 class WithdrawItemPickSelect(discord.ui.Select):
@@ -4929,7 +4931,7 @@ class WithdrawItemPickSelect(discord.ui.Select):
     def __init__(self, items: list, lang: str = None):
         self.lang = lang or i18n.DEFAULT_LANG
         options = [
-            discord.SelectOption(label=f"{it['name_en']} (×{it['quantity']})", value=it["item_id"])
+            discord.SelectOption(label=f"{it['name_vi']} (×{it['quantity']})", value=it["item_id"])
             for it in items
         ]
         super().__init__(placeholder=i18n.t("house.withdraw_pick_placeholder", self.lang), options=options, row=0)
@@ -4938,7 +4940,7 @@ class WithdrawItemPickSelect(discord.ui.Select):
     @error_handler.safe_interaction(lambda: HouseMenuView())
     async def callback(self, interaction: discord.Interaction):
         item = self._items_by_id[self.values[0]]
-        await interaction.response.send_modal(WithdrawItemModal(item["item_id"], item["name_en"], self.lang))
+        await interaction.response.send_modal(WithdrawItemModal(item["item_id"], item["name_vi"], self.lang))
 
 
 class StoreItemPickView(SafeView):
@@ -5361,6 +5363,84 @@ class GuideView(SafeView):
 
 
 # ---------------------------------------------------------------------------
+# Hướng dẫn người chơi mới (đọc trực tiếp từ docs/NEW_PLAYER_GUIDE.md)
+# ---------------------------------------------------------------------------
+
+GUIDE_DOC_PATH = os.path.join(os.path.dirname(__file__), "..", "docs", "NEW_PLAYER_GUIDE.md")
+GUIDE_DOC_PAGE_BUDGET = 3500  # ký tự tối đa mỗi trang embed (Discord giới hạn description 4096)
+
+
+def _load_guide_doc_pages() -> list:
+    """Đọc docs/NEW_PLAYER_GUIDE.md, tách theo từng mục "## ..." và gộp lại
+    thành các trang sao cho không vượt giới hạn ký tự của embed Discord.
+    Đọc trực tiếp từ file nên nội dung /huongdan luôn khớp với tài liệu gốc,
+    không cần đồng bộ tay khi tài liệu thay đổi."""
+    if not os.path.exists(GUIDE_DOC_PATH):
+        return []
+
+    with open(GUIDE_DOC_PATH, "r", encoding="utf-8") as f:
+        raw = f.read()
+
+    # Bỏ các dòng "---" (horizontal rule) để không lẫn vào nội dung trang.
+    raw = re.sub(r"(?m)^---\s*$\n?", "", raw)
+
+    sections = [s.strip("\n") for s in re.split(r"(?m)^(?=## )", raw) if s.strip()]
+
+    pages = []
+    current = ""
+    for section in sections:
+        candidate = f"{current}\n\n{section}" if current else section
+        if current and len(candidate) > GUIDE_DOC_PAGE_BUDGET:
+            pages.append(current)
+            current = section
+        else:
+            current = candidate
+    if current:
+        pages.append(current)
+
+    return pages
+
+
+GUIDE_DOC_PAGES = _load_guide_doc_pages()
+
+
+def build_guide_doc_embed(page: int) -> discord.Embed:
+    page = max(1, min(page, len(GUIDE_DOC_PAGES)))
+    embed = discord.Embed(
+        title="📘 Hướng dẫn người chơi mới",
+        description=GUIDE_DOC_PAGES[page - 1],
+        color=discord.Color.dark_purple(),
+    )
+    embed.set_footer(text=f"Trang {page}/{len(GUIDE_DOC_PAGES)}")
+    return embed
+
+
+class GuideDocView(SafeView):
+    """View điều hướng nhiều trang cho nội dung docs/NEW_PLAYER_GUIDE.md."""
+
+    def __init__(self, page: int = 1):
+        super().__init__(timeout=180)
+        self.page = max(1, min(page, len(GUIDE_DOC_PAGES)))
+        self._sync_buttons()
+
+    def _sync_buttons(self):
+        self.previous_page.disabled = self.page <= 1
+        self.next_page.disabled = self.page >= len(GUIDE_DOC_PAGES)
+
+    @discord.ui.button(label="Trang trước", emoji="⬅️", style=discord.ButtonStyle.secondary, row=0)
+    async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page -= 1
+        self._sync_buttons()
+        await interaction.response.edit_message(embed=build_guide_doc_embed(self.page), view=self)
+
+    @discord.ui.button(label="Trang sau", emoji="➡️", style=discord.ButtonStyle.secondary, row=0)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page += 1
+        self._sync_buttons()
+        await interaction.response.edit_message(embed=build_guide_doc_embed(self.page), view=self)
+
+
+# ---------------------------------------------------------------------------
 # Cog
 # ---------------------------------------------------------------------------
 
@@ -5379,6 +5459,17 @@ class MenuCog(commands.Cog):
         page = trang.value if trang else 1
         embed = build_guide_embed(page)
         view = GuideView(page)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @app_commands.command(name="huongdan", description="Xem nội dung Hướng dẫn người chơi mới (New Player Guide)")
+    async def huongdan(self, interaction: discord.Interaction):
+        if not GUIDE_DOC_PAGES:
+            embed = error_handler.player_error_embed("not_found")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        embed = build_guide_doc_embed(1)
+        view = GuideDocView(1)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @app_commands.command(name="menu", description="Mở giao diện chính của Quỷ Bí")

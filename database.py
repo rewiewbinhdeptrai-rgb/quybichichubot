@@ -1207,6 +1207,8 @@ def _migrate_name_vi_columns(conn):
         ("sequences", ["name_vi"]),
         ("abilities", ["name_vi"]),
         ("items", ["name_vi"]),
+        ("potions", ["name_vi"]),
+        ("character_characteristics", ["name_vi"]),
     ):
         existing_cols = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
         for col in cols:
@@ -1236,6 +1238,18 @@ def _migrate_name_vi_columns(conn):
             "UPDATE items SET name_vi = ? WHERE item_id = ? AND name_vi = ''",
             (name_vi, item_id),
         )
+    for pathway_id, seq_num, seq_name, seq_name_vi in build_sequence_rows():
+        if seq_num < 9:
+            conn.execute(
+                "UPDATE potions SET name_vi = ? WHERE pathway_id = ? AND target_sequence = ? AND name_vi = ''",
+                (f"Ma Dược {seq_name_vi}", pathway_id, seq_num),
+            )
+    for pathway_id, seq_num, seq_name, seq_name_vi in build_sequence_rows():
+        conn.execute(
+            """UPDATE character_characteristics SET name_vi = ?
+               WHERE pathway_id = ? AND sequence_number = ? AND name_vi = ''""",
+            (f"Đặc Tính {seq_name_vi}", pathway_id, seq_num),
+        )
 
 
 def init_db():
@@ -1263,12 +1277,12 @@ def init_db():
             )
             # Potion tên theo Sequence mục tiêu (vd: uống "Clown Potion" để hướng tới Sequence 8 — Clown)
             potion_rows = [
-                (pathway_id, seq_num, f"{seq_name} Potion")
+                (pathway_id, seq_num, f"{seq_name} Potion", f"Ma Dược {seq_name_vi}")
                 for pathway_id, seq_num, seq_name, seq_name_vi in build_sequence_rows()
                 if seq_num < 9  # Sequence 9 là điểm khởi đầu, không cần Potion để "vào" nó
             ]
             conn.executemany(
-                "INSERT INTO potions (pathway_id, target_sequence, name_en) VALUES (?, ?, ?)",
+                "INSERT INTO potions (pathway_id, target_sequence, name_en, name_vi) VALUES (?, ?, ?, ?)",
                 potion_rows,
             )
 
@@ -1660,7 +1674,7 @@ def get_potion_recipe(pathway_id: str, target_sequence: int):
     """Trả về list dict {item_id, name_en, quantity} — nguyên liệu cần Chế tạo."""
     with get_conn() as conn:
         rows = conn.execute(
-            """SELECT r.item_id, r.quantity, it.name_en
+            """SELECT r.item_id, r.quantity, it.name_en, it.name_vi
                FROM potion_recipes r JOIN items it ON it.item_id = r.item_id
                WHERE r.pathway_id = ? AND r.target_sequence = ?
                ORDER BY it.name_en""",
@@ -1755,7 +1769,7 @@ def get_ritual_materials(pathway_id: str, target_sequence: int):
     """Trả về list dict {item_id, name_en, quantity} — vật liệu cần cho Ritual."""
     with get_conn() as conn:
         rows = conn.execute(
-            """SELECT r.item_id, r.quantity, it.name_en
+            """SELECT r.item_id, r.quantity, it.name_en, it.name_vi
                FROM ritual_materials r JOIN items it ON it.item_id = r.item_id
                WHERE r.pathway_id = ? AND r.target_sequence = ?
                ORDER BY it.name_en""",
@@ -1810,7 +1824,8 @@ def list_ritual_history(character_id: int, limit: int = 10):
 # ---------- Beyonder Characteristics (mục 21) ----------
 
 def add_character_characteristic(character_id: int, pathway_id: str, sequence_number: int,
-                                  name_en: str, source: str, stability: int = 100):
+                                  name_en: str, source: str, stability: int = 100,
+                                  name_vi: str = ""):
     """Cấp 1 Characteristic gắn với (pathway_id, sequence_number) vừa đạt được.
     INSERT OR IGNORE nhờ UNIQUE constraint — nếu Character đã có Characteristic
     này rồi (vd gọi lại do lỗi mạng) thì không tạo bản duplicate. Trả về True
@@ -1818,9 +1833,9 @@ def add_character_characteristic(character_id: int, pathway_id: str, sequence_nu
     with get_conn() as conn:
         cur = conn.execute(
             """INSERT OR IGNORE INTO character_characteristics
-               (character_id, pathway_id, sequence_number, name_en, source, stability)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (character_id, pathway_id, sequence_number, name_en, source, stability),
+               (character_id, pathway_id, sequence_number, name_en, name_vi, source, stability)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (character_id, pathway_id, sequence_number, name_en, name_vi, source, stability),
         )
         return cur.rowcount > 0
 
@@ -2211,7 +2226,7 @@ def get_item(item_id: str):
 def list_inventory(character_id: int):
     with get_conn() as conn:
         rows = conn.execute(
-            """SELECT inv.item_id, inv.quantity, it.name_en, it.type, it.description,
+            """SELECT inv.item_id, inv.quantity, it.name_en, it.name_vi, it.type, it.description,
                       it.equip_slot, it.modifier_key, it.modifier_value,
                       it.heal_hp, it.heal_spirituality
                FROM inventory inv
@@ -3145,7 +3160,7 @@ def leave_party(character_id: int):
 def list_market_listings(limit: int = 20):
     with get_conn() as conn:
         rows = conn.execute(
-            """SELECT ml.*, i.name_en, c.name AS seller_name FROM market_listings ml
+            """SELECT ml.*, i.name_en, i.name_vi, c.name AS seller_name FROM market_listings ml
                JOIN items i ON i.item_id = ml.item_id
                JOIN characters c ON c.character_id = ml.seller_character_id
                WHERE ml.status = 'active' ORDER BY ml.created_at DESC LIMIT ?""",
@@ -3157,7 +3172,7 @@ def list_market_listings(limit: int = 20):
 def get_market_listing(listing_id: int):
     with get_conn() as conn:
         row = conn.execute(
-            """SELECT ml.*, i.name_en FROM market_listings ml
+            """SELECT ml.*, i.name_en, i.name_vi FROM market_listings ml
                JOIN items i ON i.item_id = ml.item_id
                WHERE ml.listing_id = ? AND ml.status = 'active'""",
             (listing_id,),
@@ -3470,7 +3485,7 @@ def get_or_create_house(character_id: int):
 def list_house_storage(character_id: int):
     with get_conn() as conn:
         rows = conn.execute(
-            """SELECT hs.item_id, hs.quantity, i.name_en FROM house_storage hs
+            """SELECT hs.item_id, hs.quantity, i.name_en, i.name_vi FROM house_storage hs
                JOIN items i ON i.item_id = hs.item_id
                WHERE hs.character_id = ? AND hs.quantity > 0""",
             (character_id,),
@@ -4602,7 +4617,7 @@ def list_active_auctions(limit: int = 15):
     with get_conn() as conn:
         _settle_expired_auctions(conn)
         rows = conn.execute(
-            """SELECT au.*, i.name_en, c.name AS seller_name FROM auctions au
+            """SELECT au.*, i.name_en, i.name_vi, c.name AS seller_name FROM auctions au
                JOIN items i ON i.item_id = au.item_id
                JOIN characters c ON c.character_id = au.seller_character_id
                WHERE au.status = 'active' ORDER BY au.ends_at ASC LIMIT ?""",

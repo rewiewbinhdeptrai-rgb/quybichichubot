@@ -35,11 +35,13 @@ def grant_from_advancement(character_id: int, pathway_id: str, sequence_number: 
     """
     seq = db.get_sequence(pathway_id, sequence_number)
     seq_name = seq["name_en"] if seq else f"Sequence {sequence_number}"
+    seq_name_vi = seq["name_vi"] if seq else f"Sequence {sequence_number}"
     name_en = f"{seq_name} Characteristic"
+    name_vi = f"Đặc Tính {seq_name_vi}"
 
     created = db.add_character_characteristic(
         character_id, pathway_id, sequence_number, name_en,
-        source="advancement", stability=100,
+        source="advancement", stability=100, name_vi=name_vi,
     )
     if not created:
         return None
