@@ -91,11 +91,12 @@ def observe(character: dict, investigation_id: str):
     roll = random.randint(1, 100)
     found = roll <= target["find_chance"]
 
+    clue_label = target["text_vi"][:40] + ("…" if len(target["text_vi"]) > 40 else "")
     if found:
         db.add_found_clue(character_id, investigation_id, target["clue_id"])
-        db.log_action(character_id, "investigation_observe", f"found:{target['clue_id']}")
+        db.log_action(character_id, "investigation_observe", f"Tìm thấy: {clue_label}")
     else:
-        db.log_action(character_id, "investigation_observe", f"missed:{target['clue_id']}")
+        db.log_action(character_id, "investigation_observe", f"Bỏ lỡ: {clue_label}")
 
     return target, found
 

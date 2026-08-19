@@ -22,6 +22,11 @@ if DEV_GUILD_ID is not None:
 # Ngôn ngữ mặc định cho user mới
 DEFAULT_LANGUAGE = "vi"
 
+# Emoji custom cho thanh máu (HP bar) — dùng thống nhất ở mọi nơi hiển thị
+# HP (Combat, PvP...). FULL = phần máu còn lại, EMPTY = phần đã mất/cạn.
+HP_BAR_FULL = "<:hp_bar_full:1539505423151931453>"
+HP_BAR_EMPTY = "<:hp_bar_empty:1539505409986011147>"
+
 # Icon dùng thống nhất toàn bộ UI (mục 54 trong tài liệu spec)
 ICONS = {
     "character": "👤",

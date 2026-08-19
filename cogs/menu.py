@@ -44,7 +44,7 @@ import auction as auction_engine
 import black_market as black_market_engine
 import loss_of_control
 import error_handler
-from config import ICONS, DB_PATH
+from config import ICONS, DB_PATH, HP_BAR_FULL, HP_BAR_EMPTY
 import i18n
 import os
 import shutil
@@ -176,9 +176,11 @@ def build_character_embed(character: dict) -> list:
 
     embed.add_field(name=f"{ICONS['pathway']} {i18n.t('character.pathway', lang)}", value=pathway_line, inline=True)
     embed.add_field(name=f"{ICONS['sequence']} {i18n.t('character.sequence', lang)}", value=seq_line, inline=True)
+    sp_filled = min(10, character["spirituality"] * 10 // max(1, character["spirituality_max"]))
+    sp_bar = "█" * sp_filled + "░" * (10 - sp_filled)
     embed.add_field(
         name=f"{ICONS['spirituality']} {i18n.t('character.spirituality', lang)}",
-        value=f"{character['spirituality']} / {character['spirituality_max']}",
+        value=f"{character['spirituality']} / {character['spirituality_max']}\n{sp_bar}",
         inline=True,
     )
     embed.add_field(
@@ -205,6 +207,33 @@ def build_character_embed(character: dict) -> list:
     location_line = current_location["name_en"] if current_location else "Chưa xác định"
     embed.add_field(name=f"{ICONS['location']} {i18n.t('character.location', lang)}", value=location_line, inline=True)
     return [banner_embed, embed]
+
+
+def _dedupe_labels(items: list, label_fn) -> list:
+    """Trả về danh sách nhãn hiển thị song song với `items`.
+
+    `label_fn(item)` sinh nhãn gốc (tên, không có id thô). Nếu nhãn đó lặp lại
+    nhiều lần trong danh sách (dễ gây nhầm lẫn khi chọn), thêm số thứ tự
+    (1), (2)... để phân biệt thay vì lộ id thô ra người chơi.
+    """
+    base_labels = [label_fn(it) for it in items]
+    counts: dict = {}
+    for lb in base_labels:
+        counts[lb] = counts.get(lb, 0) + 1
+    seen: dict = {}
+    labels = []
+    for lb in base_labels:
+        if counts[lb] > 1:
+            seen[lb] = seen.get(lb, 0) + 1
+            labels.append(f"{lb} ({seen[lb]})")
+        else:
+            labels.append(lb)
+    return labels
+
+
+def _dedupe_display_names(items: list, name_key: str) -> list:
+    """Tiện ích: dedupe theo một field tên đơn giản (xem `_dedupe_labels`)."""
+    return _dedupe_labels(items, lambda it: it[name_key])
 
 
 def build_stub_embed(title: str, icon: str) -> discord.Embed:
@@ -478,9 +507,11 @@ def build_stats_embed(character: dict) -> discord.Embed:
     embed.add_field(name="Level", value=str(character["level"]), inline=True)
     embed.add_field(name="EXP", value=f"{character['exp']:,}", inline=True)
     embed.add_field(name=f"{ICONS['hp']} HP", value=f"{character['hp']} / {character['hp_max']}", inline=True)
+    sp_filled = min(10, character["spirituality"] * 10 // max(1, character["spirituality_max"]))
+    sp_bar = "█" * sp_filled + "░" * (10 - sp_filled)
     embed.add_field(
         name=f"{ICONS['spirituality']} Spirituality",
-        value=f"{character['spirituality']} / {character['spirituality_max']}",
+        value=f"{character['spirituality']} / {character['spirituality_max']}\n{sp_bar}",
         inline=True,
     )
     embed.add_field(name="💰 Tiền", value=f"{character['money']:,} Bảng", inline=True)
@@ -884,11 +915,12 @@ def build_artifact_list_view(character: dict):
     if not owned:
         embed.description = "Bạn chưa sở hữu Sealed Artifact nào."
     else:
-        for o in owned:
+        display_names = _dedupe_display_names(owned, "name_vi")
+        for o, disp in zip(owned, display_names):
             known = [s for s in o["discovered_stages"].split(",") if s]
             uses = "Vô hạn" if o["uses_remaining"] == -1 else str(o["uses_remaining"])
             embed.add_field(
-                name=f"{o['name_vi']} (#{o['id']}) — {'★' * o['risk_stars']}",
+                name=f"{disp} — {'★' * o['risk_stars']}",
                 value=f"Grade: {o['grade']} | Đã khám phá: {len(known)}/3 | Lượt dùng còn: {uses}",
                 inline=False,
             )
@@ -897,13 +929,14 @@ def build_artifact_list_view(character: dict):
 
 class ArtifactSelect(discord.ui.Select):
     def __init__(self, owned: list):
+        display_names = _dedupe_display_names(owned, "name_vi")
         options = [
             discord.SelectOption(
-                label=f"{o['name_vi']} (#{o['id']})",
+                label=disp,
                 value=str(o["id"]),
                 description=f"{o['grade']} · {'★' * o['risk_stars']}"[:100],
             )
-            for o in owned
+            for o, disp in zip(owned, display_names)
         ]
         super().__init__(placeholder="🕯️ Chọn Vật phẩm thần kỳ", options=options, row=0)
 
@@ -1408,12 +1441,12 @@ def build_combat_embed(character: dict, session: dict, monster: dict, last_resul
     m_filled = max(0, round(session["monster_hp"] / monster["hp"] * p_bar_len))
     embed.add_field(
         name=f"{ICONS['hp']} Bạn",
-        value=f"{session['player_hp']} / {character['hp_max']}\n" + "🟩" * p_filled + "⬛" * (p_bar_len - p_filled),
+        value=f"{session['player_hp']} / {character['hp_max']}\n" + HP_BAR_FULL * p_filled + HP_BAR_EMPTY * (p_bar_len - p_filled),
         inline=True,
     )
     embed.add_field(
         name=f"👹 {monster['name_en']}",
-        value=f"{session['monster_hp']} / {monster['hp']}\n" + "🟥" * m_filled + "⬛" * (p_bar_len - m_filled),
+        value=f"{session['monster_hp']} / {monster['hp']}\n" + HP_BAR_FULL * m_filled + HP_BAR_EMPTY * (p_bar_len - m_filled),
         inline=True,
     )
     active = effects.list_active_effects(character["character_id"])
@@ -1666,10 +1699,11 @@ async def _render_dungeon_combat_turn(interaction: discord.Interaction, result: 
 
     if status == "cleared":
         d = dungeon_result["dungeon"]
+        reward_item = db.get_item(d["reward_item_id"]) if d.get("reward_item_id") else None
         embed.add_field(
             name="🏆 DUNGEON HOÀN THÀNH",
             value=f"**{d['name_vi']}** — Thưởng tổng: {d['reward_money']:,} Bảng, {d['reward_exp']:,} EXP"
-                  + (f", nhận được {d['reward_item_id']}" if d.get("reward_item_id") else ""),
+                  + (f", nhận được {reward_item['name_vi'] if reward_item else 'Vật phẩm bí ẩn'}" if d.get("reward_item_id") else ""),
             inline=False,
         )
         await interaction.response.edit_message(embed=embed, view=SimpleBackView(CombatMenuView))
@@ -1826,12 +1860,12 @@ def build_pvp_embed(character: dict, session: dict, opponent: dict, last_result:
     opp_filled = max(0, round(opp_hp / max(1, opponent["hp_max"]) * bar_len))
     embed.add_field(
         name=f"{ICONS['hp']} Bạn ({character['name']})",
-        value=f"{self_hp} / {character['hp_max']}\n" + "🟩" * self_filled + "⬛" * (bar_len - self_filled),
+        value=f"{self_hp} / {character['hp_max']}\n" + HP_BAR_FULL * self_filled + HP_BAR_EMPTY * (bar_len - self_filled),
         inline=True,
     )
     embed.add_field(
         name=f"⚔️ {opponent['name']}",
-        value=f"{opp_hp} / {opponent['hp_max']}\n" + "🟥" * opp_filled + "⬛" * (bar_len - opp_filled),
+        value=f"{opp_hp} / {opponent['hp_max']}\n" + HP_BAR_FULL * opp_filled + HP_BAR_EMPTY * (bar_len - opp_filled),
         inline=True,
     )
     if session.get("turn_character_id") is not None:
@@ -2455,7 +2489,8 @@ def build_world_event_hub(character: dict):
         embed.description = "Hiện không có Sự kiện nào đang diễn ra. Sự kiện có thể tự phát sinh khi Di chuyển."
         return embed, SimpleBackView(WorldMenuView)
 
-    for e in events:
+    event_labels = _dedupe_labels(events, lambda e: f"{e['name_vi']} — {e['city_name']}")
+    for e, disp in zip(events, event_labels):
         deltas = []
         if e["economy_delta"]:
             deltas.append(f"Kinh tế {'+' if e['economy_delta']>=0 else ''}{e['economy_delta']}")
@@ -2464,7 +2499,7 @@ def build_world_event_hub(character: dict):
         if e["mystical_delta"]:
             deltas.append(f"Huyền bí {'+' if e['mystical_delta']>=0 else ''}{e['mystical_delta']}")
         embed.add_field(
-            name=f"#{e['event_id']} {e['name_vi']} — {e['city_name']}",
+            name=disp,
             value=f"{e['description_vi'][:150]}\n{' · '.join(deltas)}",
             inline=False,
         )
@@ -2474,13 +2509,14 @@ def build_world_event_hub(character: dict):
 class ContributeEventSelect(discord.ui.Select):
     def __init__(self, events: list):
         from data.world_events_seed import CONTRIBUTION_COST_MONEY
+        event_labels = _dedupe_labels(events, lambda e: f"{e['name_vi']} ({e['city_name']})")
         options = [
             discord.SelectOption(
-                label=f"#{e['event_id']} {e['name_vi']} ({e['city_name']})",
+                label=disp,
                 value=str(e["event_id"]),
                 description=f"Tốn {CONTRIBUTION_COST_MONEY} Bảng để can thiệp"[:100],
             )
-            for e in events
+            for e, disp in zip(events, event_labels)
         ]
         super().__init__(placeholder=f"{ICONS['event']} Can thiệp dẹp Sự kiện", options=options, row=0)
 
@@ -2907,7 +2943,7 @@ def build_quest_detail_view(character: dict, quest_id: str):
     reward_lines = [f"{q['reward_money']} Bảng", f"{q['reward_exp']} EXP"]
     if q["reward_item_id"]:
         item = db.get_item(q["reward_item_id"])
-        reward_lines.append(item["name_vi"] if item else q["reward_item_id"])
+        reward_lines.append(item["name_vi"] if item else "Vật phẩm bí ẩn")
     embed.add_field(name="Phần thưởng", value=" · ".join(reward_lines), inline=False)
 
     return embed, QuestDetailView(quest_id, status)
@@ -3344,7 +3380,9 @@ def build_tarot_view(character: dict):
         embed.add_field(name="Mật danh của bạn", value=f"**{membership['tarot_seat']}**", inline=False)
         meetings = tarot_engine.list_meetings()
         if meetings:
-            lines = [f"#{m['meeting_id']} — {m['topic_vi']} (triệu tập bởi {m['called_by_seat']})" for m in meetings[:5]]
+            recent = meetings[:5]
+            recent_labels = _dedupe_labels(recent, lambda m: f"{m['topic_vi']} (triệu tập bởi {m['called_by_seat']})")
+            lines = [f"— {lb}" for lb in recent_labels]
             embed.add_field(name="Hội nghị gần đây", value="\n".join(lines), inline=False)
         else:
             embed.add_field(name="Hội nghị", value="Chưa có hội nghị nào được triệu tập.", inline=False)
@@ -3434,11 +3472,12 @@ def build_tarot_meeting_view(character: dict, meeting_id: int):
     membership = tarot_engine.get_membership(character["character_id"])
     meeting = next((m for m in tarot_engine.list_meetings() if m["meeting_id"] == meeting_id), None)
     icon = ICONS["tarot"]
-    embed = discord.Embed(title=f"{icon} HỘI NGHỊ #{meeting_id}", color=discord.Color.dark_magenta())
     if meeting is None:
+        embed = discord.Embed(title=f"{icon} HỘI NGHỊ", color=discord.Color.dark_magenta())
         embed.description = "Hội nghị này không còn tồn tại."
         return embed, SimpleBackView(FactionMenuView)
-    embed.description = f"Chủ đề: **{meeting['topic_vi']}**\nTriệu tập bởi: {meeting['called_by_seat']}"
+    embed = discord.Embed(title=f"{icon} HỘI NGHỊ — {meeting['topic_vi']}", color=discord.Color.dark_magenta())
+    embed.description = f"Triệu tập bởi: {meeting['called_by_seat']}"
     messages = tarot_engine.list_messages(meeting_id)
     if messages:
         lines = [f"**{m['from_seat']}**: {m['content_vi']}" for m in messages[-10:]]
@@ -3451,9 +3490,11 @@ def build_tarot_meeting_view(character: dict, meeting_id: int):
 
 class OpenMeetingSelect(discord.ui.Select):
     def __init__(self, meetings: list):
+        shown = meetings[:20]
+        labels = _dedupe_labels(shown, lambda m: m["topic_vi"][:80])
         options = [
-            discord.SelectOption(label=f"#{m['meeting_id']} {m['topic_vi'][:80]}", value=str(m["meeting_id"]))
-            for m in meetings[:20]
+            discord.SelectOption(label=lb, value=str(m["meeting_id"]))
+            for m, lb in zip(shown, labels)
         ] or [discord.SelectOption(label="(Chưa có hội nghị nào)", value="_none")]
         super().__init__(placeholder="📖 Mở hội nghị", options=options, row=2, disabled=not meetings)
 
@@ -3921,9 +3962,10 @@ def build_market_view(character: dict):
     embed.description = f"💰 {character['money']:,} Bảng"
     if not listings:
         embed.add_field(name="—", value="Chợ hiện không có ai rao bán.", inline=False)
-    for l in listings:
+    field_labels = _dedupe_labels(listings, lambda l: f"{l['name_vi']} ×{l['quantity']}")
+    for l, disp in zip(listings, field_labels):
         embed.add_field(
-            name=f"#{l['listing_id']} — {l['name_vi']} ×{l['quantity']}",
+            name=disp,
             value=f"Giá: {l['price_per_unit']:,}/cái (tổng {l['price_per_unit']*l['quantity']:,} Bảng) · Người bán: {l['seller_name']}",
             inline=False,
         )
@@ -3932,13 +3974,14 @@ def build_market_view(character: dict):
 
 class BuyListingSelect(discord.ui.Select):
     def __init__(self, listings: list):
+        labels = _dedupe_labels(listings, lambda l: f"{l['name_vi']} ×{l['quantity']}")
         options = [
             discord.SelectOption(
-                label=f"#{l['listing_id']} {l['name_vi']} ×{l['quantity']}",
+                label=lb,
                 value=str(l["listing_id"]),
                 description=f"{l['price_per_unit']*l['quantity']:,} Bảng"[:100],
             )
-            for l in listings
+            for l, lb in zip(listings, labels)
         ]
         super().__init__(placeholder=f"{ICONS['market']} Mua vật phẩm", options=options, row=0)
 
@@ -4043,11 +4086,10 @@ class MarketActionsView(SafeView):
 
 class CancelListingSelect(discord.ui.Select):
     def __init__(self, my_listings: list):
+        labels = _dedupe_labels(my_listings, lambda l: f"{l['name_vi']} ×{l['quantity']}")
         options = [
-            discord.SelectOption(
-                label=f"#{l['listing_id']} {l['name_vi']} ×{l['quantity']}", value=str(l["listing_id"])
-            )
-            for l in my_listings
+            discord.SelectOption(label=lb, value=str(l["listing_id"]))
+            for l, lb in zip(my_listings, labels)
         ] or [discord.SelectOption(label="(Bạn chưa rao bán gì)", value="_none")]
         super().__init__(placeholder="❌ Huỷ tin rao bán", options=options, row=0, disabled=not my_listings)
 
@@ -4090,9 +4132,10 @@ class MyListingsButton(discord.ui.Button):
         embed = discord.Embed(title=f"{icon} TIN RAO BÁN CỦA TÔI", color=discord.Color.orange())
         if not my_listings:
             embed.description = "Bạn hiện không có tin rao bán nào."
-        for l in my_listings:
+        my_listing_labels = _dedupe_labels(my_listings, lambda l: f"{l['name_vi']} ×{l['quantity']}")
+        for l, disp in zip(my_listings, my_listing_labels):
             embed.add_field(
-                name=f"#{l['listing_id']} — {l['name_vi']} ×{l['quantity']}",
+                name=disp,
                 value=f"Giá: {l['price_per_unit']:,}/cái (tổng {l['price_per_unit']*l['quantity']:,} Bảng)",
                 inline=False,
             )
@@ -4118,11 +4161,17 @@ def build_black_market_view(character: dict):
     )
     if not listings:
         embed.add_field(name="—", value=i18n.t("black_market.no_listings", lang), inline=False)
-    for l in listings:
+
+    def _bm_base_label(l):
         category_label = i18n.t(f"black_market.category.{l['category']}", lang, default=l["category"])
+        item_name = l.get("item_name_vi")
+        return f"{item_name} — {category_label}" if item_name else category_label
+
+    item_labels = _dedupe_labels(listings, _bm_base_label)
+    for l, disp in zip(listings, item_labels):
         risk_label = i18n.t(f"black_market.risk.{l['risk_type']}", lang, default=l["risk_type"])
         embed.add_field(
-            name=f"{l['listing_id']} — {category_label}",
+            name=disp,
             value=(
                 f"Giá: {l['price']:,} Bảng · ⚠️ {risk_label}"
                 + (f" ({l['risk_chance']}%)" if l["risk_type"] != "none" else "")
@@ -4135,13 +4184,20 @@ def build_black_market_view(character: dict):
 
 class BlackMarketBuySelect(discord.ui.Select):
     def __init__(self, listings: list, lang: str = None):
+        def _label(l):
+            category_label = i18n.t(f"black_market.category.{l['category']}", lang, default=l["category"])
+            item_name = l.get("item_name_vi")
+            base = f"{item_name} — {category_label}" if item_name else category_label
+            return f"{base} · {l['price']:,} Bảng"
+
+        labels = _dedupe_labels(listings, _label)
         options = [
             discord.SelectOption(
-                label=f"{l['listing_id']} — {l['price']:,} Bảng",
+                label=lb,
                 value=l["listing_id"],
                 description=i18n.t(f"black_market.risk.{l['risk_type']}", lang, default=l["risk_type"])[:100],
             )
-            for l in listings
+            for l, lb in zip(listings, labels)
         ]
         super().__init__(
             placeholder=f"{ICONS['black_market']} {i18n.t('black_market.buy_placeholder', lang)}",
@@ -4191,10 +4247,18 @@ class BlackMarketHistoryButton(discord.ui.Button):
         if not entries:
             embed.description = "Bạn chưa có giao dịch Chợ Đen nào."
         outcome_icon = {"success": "✅", "scam": "🎭", "trap": "💥", "wanted": "☠️"}
-        for e in entries[:15]:
+        shown = entries[:15]
+
+        def _hist_base_label(e):
+            category_label = i18n.t(f"black_market.category.{e['category']}", default=e["category"]) if e.get("category") else "?"
+            item_name = e.get("item_name_vi")
+            return f"{item_name} — {category_label}" if item_name else category_label
+
+        hist_labels = _dedupe_labels(shown, _hist_base_label)
+        for e, disp in zip(shown, hist_labels):
             icon_e = outcome_icon.get(e["outcome"], "ℹ️")
             embed.add_field(
-                name=f"{icon_e} {e['listing_id']} — {e['created_at']}",
+                name=f"{icon_e} {disp} — {e['created_at']}",
                 value=f"Kết quả: {e['outcome']} · Tốn: {e['money_spent']:,} Bảng",
                 inline=False,
             )
@@ -4212,10 +4276,11 @@ def build_auction_view(character: dict):
     embed.description = f"💰 {character['money']:,} Bảng"
     if not auctions:
         embed.add_field(name="—", value="Hiện không có phiên đấu giá nào.", inline=False)
-    for a in auctions:
+    auction_labels = _dedupe_labels(auctions, lambda a: f"{a['name_vi']} ×{a['quantity']}")
+    for a, disp in zip(auctions, auction_labels):
         bidder = " · Đang có người ra giá" if a["highest_bidder_character_id"] else " · Chưa có ai ra giá"
         embed.add_field(
-            name=f"#{a['auction_id']} — {a['name_vi']} ×{a['quantity']}",
+            name=disp,
             value=(
                 f"Giá hiện tại: {a['current_price']:,} Bảng · Kết thúc: {a['ends_at']} · "
                 f"Người bán: {a['seller_name']}{bidder}"
@@ -4227,13 +4292,14 @@ def build_auction_view(character: dict):
 
 class BidAuctionSelect(discord.ui.Select):
     def __init__(self, auctions: list):
+        labels = _dedupe_labels(auctions, lambda a: f"{a['name_vi']} ×{a['quantity']}")
         options = [
             discord.SelectOption(
-                label=f"#{a['auction_id']} {a['name_vi']} ×{a['quantity']}",
+                label=lb,
                 value=str(a["auction_id"]),
                 description=f"Giá hiện tại {a['current_price']:,} Bảng"[:100],
             )
-            for a in auctions
+            for a, lb in zip(auctions, labels)
         ] or [discord.SelectOption(label="Chưa có phiên nào", value="_none")]
         super().__init__(placeholder=f"{ICONS['auction']} Chọn phiên để ra giá", options=options, row=0)
 
@@ -4359,9 +4425,10 @@ class AuctionActionsView(SafeView):
 class CancelAuctionSelect(discord.ui.Select):
     def __init__(self, my_auctions: list):
         cancellable = [a for a in my_auctions if a["highest_bidder_character_id"] is None]
+        labels = _dedupe_labels(cancellable, lambda a: f"{a['name_vi']} ×{a['quantity']}")
         options = [
-            discord.SelectOption(label=f"#{a['auction_id']} {a['name_vi']} ×{a['quantity']}", value=str(a["auction_id"]))
-            for a in cancellable
+            discord.SelectOption(label=lb, value=str(a["auction_id"]))
+            for a, lb in zip(cancellable, labels)
         ] or [discord.SelectOption(label="(Không có phiên có thể huỷ)", value="_none")]
         super().__init__(placeholder="❌ Huỷ phiên đấu giá", options=options, row=0, disabled=not cancellable)
 
@@ -4401,10 +4468,11 @@ class MyAuctionsButton(discord.ui.Button):
         embed = discord.Embed(title=f"{icon} PHIÊN ĐẤU GIÁ CỦA TÔI", color=discord.Color.dark_orange())
         if not my_auctions:
             embed.description = "Bạn hiện không có phiên đấu giá nào."
-        for a in my_auctions:
+        my_auction_labels = _dedupe_labels(my_auctions, lambda a: f"{a['name_vi']} ×{a['quantity']}")
+        for a, disp in zip(my_auctions, my_auction_labels):
             bidder = "Đang có người ra giá (không huỷ được)" if a["highest_bidder_character_id"] else "Chưa có ai ra giá"
             embed.add_field(
-                name=f"#{a['auction_id']} — {a['name_vi']} ×{a['quantity']}",
+                name=disp,
                 value=f"Giá hiện tại: {a['current_price']:,} Bảng · {bidder}",
                 inline=False,
             )
@@ -4417,7 +4485,13 @@ def build_trade_view(character: dict):
     embed = discord.Embed(title=f"{icon} TRADE TRỰC TIẾP", color=discord.Color.blue())
     embed.description = "Chọn người chơi để giao dịch trực tiếp 1-đổi-1 (an toàn, đồng bộ hai chiều)."
     if history:
-        lines = [f"{h['kind']} · {h['quantity'] or ''} {h['item_id'] or ''} · {h['money_amount']:,} Bảng" for h in history[:5]]
+        lines = []
+        for h in history[:5]:
+            item_label = ""
+            if h["item_id"]:
+                item = db.get_item(h["item_id"])
+                item_label = f"{h['quantity'] or ''} {item['name_vi'] if item else 'Vật phẩm bí ẩn'}"
+            lines.append(f"{h['kind']} · {item_label} · {h['money_amount']:,} Bảng")
         embed.add_field(name="Lịch sử gần đây", value="\n".join(lines), inline=False)
     return embed, TradeActionsView()
 
@@ -4521,9 +4595,10 @@ def build_contract_view(character: dict):
     embed = discord.Embed(title=f"{icon} KHẾ ƯỚC", color=discord.Color.dark_orange())
     if not contracts:
         embed.description = "Hiện không có Khế ước nào đang mở."
-    for c in contracts:
+    contract_labels = _dedupe_labels(contracts, lambda c: c["task_vi"])
+    for c, disp in zip(contracts, contract_labels):
         embed.add_field(
-            name=f"#{c['contract_id']} — {c['task_vi']}",
+            name=disp,
             value=f"Thưởng: {c['reward_money']:,} Bảng",
             inline=False,
         )
@@ -4532,9 +4607,10 @@ def build_contract_view(character: dict):
 
 class AcceptContractSelect(discord.ui.Select):
     def __init__(self, contracts: list):
+        labels = _dedupe_labels(contracts, lambda c: c["task_vi"][:80])
         options = [
-            discord.SelectOption(label=f"#{c['contract_id']} {c['task_vi'][:80]}", value=str(c["contract_id"]))
-            for c in contracts
+            discord.SelectOption(label=lb, value=str(c["contract_id"]))
+            for c, lb in zip(contracts, labels)
         ]
         super().__init__(placeholder=f"{ICONS['contract']} Nhận Khế ước", options=options, row=0)
 
@@ -4614,10 +4690,11 @@ def build_my_contracts_view(character: dict):
     embed = discord.Embed(title=f"{icon} KHẾ ƯỚC CỦA TÔI", color=discord.Color.dark_orange())
     if not contracts:
         embed.description = "Bạn chưa đăng hay nhận Khế ước nào."
-    for c in contracts:
+    my_contract_labels = _dedupe_labels(contracts, lambda c: c["task_vi"])
+    for c, disp in zip(contracts, my_contract_labels):
         role = "Người đăng" if c["issuer_character_id"] == character_id else "Người nhận"
         embed.add_field(
-            name=f"#{c['contract_id']} — {c['task_vi']}",
+            name=disp,
             value=(
                 f"Thưởng: {c['reward_money']:,} Bảng | Vai trò: {role}\n"
                 f"Trạng thái: {STATUS_LABEL_VI.get(c['status'], c['status'])}"
@@ -4630,9 +4707,10 @@ def build_my_contracts_view(character: dict):
 class CompleteContractSelect(discord.ui.Select):
     def __init__(self, contracts: list):
         completable = [c for c in contracts if c["status"] == "in_progress"]
+        labels = _dedupe_labels(completable, lambda c: c["task_vi"][:80])
         options = [
-            discord.SelectOption(label=f"#{c['contract_id']} {c['task_vi'][:80]}", value=str(c["contract_id"]))
-            for c in completable
+            discord.SelectOption(label=lb, value=str(c["contract_id"]))
+            for c, lb in zip(completable, labels)
         ] or [discord.SelectOption(label="(Không có Khế ước chờ xác nhận)", value="_none")]
         super().__init__(placeholder="✅ Xác nhận hoàn thành", options=options, row=0, disabled=not completable)
 
@@ -4653,9 +4731,10 @@ class CompleteContractSelect(discord.ui.Select):
 class CancelContractSelect(discord.ui.Select):
     def __init__(self, contracts: list):
         cancellable = [c for c in contracts if c["status"] == "open"]
+        labels = _dedupe_labels(cancellable, lambda c: c["task_vi"][:80])
         options = [
-            discord.SelectOption(label=f"#{c['contract_id']} {c['task_vi'][:80]}", value=str(c["contract_id"]))
-            for c in cancellable
+            discord.SelectOption(label=lb, value=str(c["contract_id"]))
+            for c, lb in zip(cancellable, labels)
         ] or [discord.SelectOption(label="(Không có Khế ước có thể huỷ)", value="_none")]
         super().__init__(placeholder="❌ Huỷ Khế ước", options=options, row=1, disabled=not cancellable)
 
@@ -4698,9 +4777,10 @@ def build_bounty_view(character: dict):
     embed = discord.Embed(title=f"{icon} TRUY NÃ", color=discord.Color.dark_red())
     if not bounties:
         embed.description = "Hiện không có lệnh Truy nã nào."
-    for b in bounties:
+    bounty_labels = _dedupe_labels(bounties, lambda b: b["target_name"])
+    for b, disp in zip(bounties, bounty_labels):
         embed.add_field(
-            name=f"#{b['bounty_id']} — {b['target_name']}",
+            name=disp,
             value=f"Tội danh: {b['crime_vi']} · Thưởng: {b['reward_money']:,} Bảng",
             inline=False,
         )
@@ -4709,9 +4789,10 @@ def build_bounty_view(character: dict):
 
 class ClaimBountySelect(discord.ui.Select):
     def __init__(self, bounties: list):
+        labels = _dedupe_labels(bounties, lambda b: b["target_name"])
         options = [
-            discord.SelectOption(label=f"#{b['bounty_id']} {b['target_name']}", value=str(b["bounty_id"]))
-            for b in bounties
+            discord.SelectOption(label=lb, value=str(b["bounty_id"]))
+            for b, lb in zip(bounties, labels)
         ]
         super().__init__(placeholder=f"{ICONS['bounty']} Nhận thưởng (đã hạ mục tiêu)", options=options, row=0)
 

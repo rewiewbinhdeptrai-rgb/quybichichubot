@@ -71,7 +71,7 @@ def experiment(character_id: int, character_artifact_id: int) -> dict:
     if not db.consume_artifact_use(character_artifact_id):
         raise ArtifactError("Không thể sử dụng Vật phẩm thần kỳ lúc này.")
 
-    effects.apply_effect(character_id, artifact["effect_id"], source=f"artifact:{artifact['artifact_id']}")
+    effects.apply_effect(character_id, artifact["effect_id"], source=f"artifact:{artifact['name_en']}_{artifact['artifact_id']}")
 
     # 🗝️ Phòng Cổ vật (mục 42 mở rộng — house.py) giảm % kích hoạt Side
     # Effect thật. Kẹp tối thiểu 5% để Experiment không bao giờ hoàn toàn an
@@ -82,7 +82,7 @@ def experiment(character_id: int, character_artifact_id: int) -> dict:
 
     side_triggered = False
     if artifact["side_effect_id"] and random.randint(1, 100) <= effective_side_chance:
-        effects.apply_effect(character_id, artifact["side_effect_id"], source=f"artifact:{artifact['artifact_id']}")
+        effects.apply_effect(character_id, artifact["side_effect_id"], source=f"artifact:{artifact['name_en']}_{artifact['artifact_id']}")
         side_triggered = True
 
     db.update_artifact_discovery(character_artifact_id, ",".join(STAGE_ORDER))

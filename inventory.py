@@ -92,7 +92,7 @@ def _effect_id_for_item(item: dict) -> str:
     """Equipment dùng effect_id riêng theo item, đăng ký động vào
     effect_definitions nếu chưa có — vẫn là dữ liệu tĩnh (đọc từ items_seed),
     không phải AI runtime tự nghĩ ra modifier."""
-    effect_id = f"equip_{item['item_id']}"
+    effect_id = f"equip_{item['name_en']}_{item['item_id']}"
     if db.get_effect_definition(effect_id) is None:
         _register_equipment_effect(effect_id, item)
     return effect_id

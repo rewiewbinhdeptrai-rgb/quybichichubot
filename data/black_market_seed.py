@@ -105,4 +105,15 @@ BLACK_MARKET_LISTINGS = [
         "vật phẩm nào được giao — chỉ là lời hứa miệng. 15% khả năng chính bên bán tố giác bạn "
         "để lấy thêm tiền thưởng.",
     ),
+    (
+        # item_id "healing_draught" đã có sẵn trong data/items_seed.py (ITEMS) —
+        # KHÔNG khai báo lại trong BLACK_MARKET_ITEMS phía trên: items table seed
+        # bằng INSERT OR IGNORE (database.py), khai báo trùng item_id ở đây chỉ
+        # gây nhầm lẫn 2 nguồn định nghĩa chứ không đổi được record đã tồn tại.
+        "bm_healing_draught", "illegal_potion", "healing_draught", 1, 950,
+        "none", 0,
+        "Vẫn là công thức Thuốc Hồi Phục quen thuộc — chỉ khác là mối hàng này giao ngay, "
+        "không cần chờ nguồn ở chợ thường. Không có rủi ro thêm, chỉ đắt hơn giá gốc vì đi "
+        "đường tắt.",
+    ),
 ]

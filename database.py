@@ -4703,7 +4703,10 @@ def cancel_auction_transaction(seller_character_id: int, auction_id: int) -> boo
 def list_black_market_catalog():
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM black_market_listings ORDER BY category, price"
+            """SELECT bml.*, i.name_vi AS item_name_vi, i.name_en AS item_name_en
+               FROM black_market_listings bml
+               LEFT JOIN items i ON i.item_id = bml.item_id
+               ORDER BY bml.category, bml.price"""
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -4711,7 +4714,11 @@ def list_black_market_catalog():
 def get_black_market_listing(listing_id: str):
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT * FROM black_market_listings WHERE listing_id = ?", (listing_id,)
+            """SELECT bml.*, i.name_vi AS item_name_vi, i.name_en AS item_name_en
+               FROM black_market_listings bml
+               LEFT JOIN items i ON i.item_id = bml.item_id
+               WHERE bml.listing_id = ?""",
+            (listing_id,),
         ).fetchone()
         return dict(row) if row else None
 
@@ -4728,8 +4735,12 @@ def log_black_market_purchase(character_id: int, listing_id: str, outcome: str, 
 def list_black_market_history(character_id: int, limit: int = 20):
     with get_conn() as conn:
         rows = conn.execute(
-            """SELECT * FROM black_market_purchase_log WHERE character_id = ?
-               ORDER BY created_at DESC LIMIT ?""",
+            """SELECT log.*, bml.category AS category, i.name_vi AS item_name_vi
+               FROM black_market_purchase_log log
+               LEFT JOIN black_market_listings bml ON bml.listing_id = log.listing_id
+               LEFT JOIN items i ON i.item_id = bml.item_id
+               WHERE log.character_id = ?
+               ORDER BY log.created_at DESC LIMIT ?""",
             (character_id, limit),
         ).fetchall()
         return [dict(r) for r in rows]
