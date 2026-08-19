@@ -47,44 +47,47 @@ from data.pathways_seed import (
     MONSTER_SEQUENCES,
 )
 
-# (pathway_id, danh sách Sequence 9->0 thật, "dạng thức" ghép tên Ability)
+# (pathway_id, danh sách Sequence 9->0 thật, "dạng thức" ghép tên Ability EN,
+#  "dạng thức" tiếng Việt — theo bảng thuật ngữ, ghép TRƯỚC tên Sequence,
+#  vd "Strike" -> "Đòn Đánh" nên "Warrior Strike" -> "Đòn Đánh Chiến Binh")
 PATHWAY_ABILITY_STYLE = [
-    ("seer", SEER_SEQUENCES, "Technique"),
-    ("apprentice", APPRENTICE_SEQUENCES, "Incantation"),
-    ("marauder", MARAUDER_SEQUENCES, "Maneuver"),
-    ("spectator", SPECTATOR_SEQUENCES, "Illusion"),
-    ("bard", BARD_SEQUENCES, "Hymn"),
-    ("sailor", SAILOR_SEQUENCES, "Tempest"),
-    ("secrets_suppliant", SECRETS_SUPPLIANT_SEQUENCES, "Pact"),
-    ("reader", READER_SEQUENCES, "Revelation"),
-    ("corpse_collector", CORPSE_COLLECTOR_SEQUENCES, "Rite"),
-    ("sleepless", SLEEPLESS_SEQUENCES, "Nightmare"),
-    ("warrior", WARRIOR_SEQUENCES, "Strike"),
-    ("lawyer", LAWYER_SEQUENCES, "Verdict"),
-    ("arbiter", ARBITER_SEQUENCES, "Judgment"),
-    ("hunter", HUNTER_SEQUENCES, "Hunt"),
-    ("assassin", ASSASSIN_SEQUENCES, "Blade"),
-    ("criminal", CRIMINAL_SEQUENCES, "Havoc"),
-    ("prisoner", PRISONER_SEQUENCES, "Restraint"),
-    ("mystery_pryer", MYSTERY_PRYER_SEQUENCES, "Insight"),
-    ("savant", SAVANT_SEQUENCES, "Construct"),
-    ("planter", PLANTER_SEQUENCES, "Growth"),
-    ("apothecary", APOTHECARY_SEQUENCES, "Elixir"),
-    ("monster", MONSTER_SEQUENCES, "Fortune"),
+    ("seer", SEER_SEQUENCES, "Technique", "Bí Thuật"),
+    ("apprentice", APPRENTICE_SEQUENCES, "Incantation", "Chú Ngôn"),
+    ("marauder", MARAUDER_SEQUENCES, "Maneuver", "Thủ Pháp"),
+    ("spectator", SPECTATOR_SEQUENCES, "Illusion", "Ảo Thuật"),
+    ("bard", BARD_SEQUENCES, "Hymn", "Thánh Ca"),
+    ("sailor", SAILOR_SEQUENCES, "Tempest", "Bão Tố"),
+    ("secrets_suppliant", SECRETS_SUPPLIANT_SEQUENCES, "Pact", "Khế Ước"),
+    ("reader", READER_SEQUENCES, "Revelation", "Khải Thị"),
+    ("corpse_collector", CORPSE_COLLECTOR_SEQUENCES, "Rite", "Nghi Thức"),
+    ("sleepless", SLEEPLESS_SEQUENCES, "Nightmare", "Ác Mộng"),
+    ("warrior", WARRIOR_SEQUENCES, "Strike", "Đòn Đánh"),
+    ("lawyer", LAWYER_SEQUENCES, "Verdict", "Phán Quyết"),
+    ("arbiter", ARBITER_SEQUENCES, "Judgment", "Phán Quyết"),
+    ("hunter", HUNTER_SEQUENCES, "Hunt", "Săn Đuổi"),
+    ("assassin", ASSASSIN_SEQUENCES, "Blade", "Lưỡi Dao"),
+    ("criminal", CRIMINAL_SEQUENCES, "Havoc", "Tàn Phá"),
+    ("prisoner", PRISONER_SEQUENCES, "Restraint", "Trói Buộc"),
+    ("mystery_pryer", MYSTERY_PRYER_SEQUENCES, "Insight", "Minh Giác"),
+    ("savant", SAVANT_SEQUENCES, "Construct", "Tạo Vật"),
+    ("planter", PLANTER_SEQUENCES, "Growth", "Sinh Trưởng"),
+    ("apothecary", APOTHECARY_SEQUENCES, "Elixir", "Ma Dược"),
+    ("monster", MONSTER_SEQUENCES, "Fortune", "Vận May"),
 ]
 
 
 def build_ability_rows():
-    """Trả về list (pathway_id, sequence_number, ability_id, name_en, cost,
-    damage_multiplier) để insert — dùng cho cả 22 Pathway, không riêng Seer
-    nữa. ability_id giữ đúng format cũ f"{pathway_id}_{seq_num}" nên dữ
+    """Trả về list (pathway_id, sequence_number, ability_id, name_en, name_vi,
+    cost, damage_multiplier) để insert — dùng cho cả 22 Pathway, không riêng
+    Seer nữa. ability_id giữ đúng format cũ f"{pathway_id}_{seq_num}" nên dữ
     liệu Seer cũ (đã có người chơi test) không bị đổi id."""
     rows = []
-    for pathway_id, sequences, verb in PATHWAY_ABILITY_STYLE:
-        for seq_num, seq_name in sequences:
+    for pathway_id, sequences, verb, verb_vi in PATHWAY_ABILITY_STYLE:
+        for seq_num, seq_name, seq_name_vi in sequences:
             ability_id = f"{pathway_id}_{seq_num}"
             cost = 5 + (9 - seq_num) * 3
             damage_multiplier = round(1.2 + (9 - seq_num) * 0.15, 2)
             name = f"{seq_name} {verb}"
-            rows.append((pathway_id, seq_num, ability_id, name, cost, damage_multiplier))
+            name_vi = f"{verb_vi} {seq_name_vi}"
+            rows.append((pathway_id, seq_num, ability_id, name, name_vi, cost, damage_multiplier))
     return rows

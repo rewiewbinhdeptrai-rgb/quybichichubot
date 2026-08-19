@@ -80,7 +80,38 @@ class SafeView(discord.ui.View):
     @error_handler.safe_interaction, discord.py sẽ gọi on_error() này thay
     vì để lỗi rơi ra ngoài. Người chơi luôn chỉ thấy một Embed trung lập,
     không bao giờ thấy traceback/tên biến/ID nội bộ; log kỹ thuật đầy đủ
-    vẫn được ghi lại phía dev."""
+    vẫn được ghi lại phía dev.
+
+    interaction_check(): /menu KHÔNG gửi ephemeral (mục 52 — menu cần ở lại
+    kênh để người khác thấy Character đang làm gì), nên message của View này
+    hiển thị công khai cho cả kênh. Không có check nào trước đây -> BẤT KỲ
+    ai trong kênh cũng bấm được nút/Select trên menu của người khác (đổi
+    Character, tấn công hộ, uống Potion hộ, chấp nhận PvP hộ...). Sửa bằng
+    cách so khớp interaction.user với người đã tạo ra Interaction gốc sinh
+    ra Message này (Discord lưu lại qua message.interaction_metadata — hoặc
+    message.interaction ở bản discord.py cũ hơn), áp dụng chung một lần cho
+    toàn bộ ~180 View/Select/Button kế thừa SafeView, không cần sửa từng
+    class con. Message không gắn với Interaction nào (vd Embed do task nền
+    tự gửi) thì không xác định được chủ sở hữu — cho qua (fail open), không
+    đổi hành vi cũ trong các trường hợp đó."""
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        message = interaction.message
+        owner = None
+        if message is not None:
+            meta = getattr(message, "interaction_metadata", None)
+            if meta is not None:
+                owner = meta.user
+            else:
+                legacy = getattr(message, "interaction", None)
+                owner = legacy.user if legacy is not None else None
+        if owner is not None and interaction.user.id != owner.id:
+            await interaction.response.send_message(
+                "🔒 Đây không phải menu của bạn — dùng lệnh `/menu` để mở menu riêng của bạn.",
+                ephemeral=True,
+            )
+            return False
+        return True
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item) -> None:
         await error_handler.handle_unexpected(interaction, error, item.__class__.__qualname__)
@@ -5188,12 +5219,167 @@ class NoCharacterView(SafeView):
 
 
 # ---------------------------------------------------------------------------
+# 📖 Hướng dẫn chơi (/huong_dan) — 3 trang, dành cho người chơi mới
+# ---------------------------------------------------------------------------
+
+GUIDE_PAGES = [
+    {
+        "title": "📖 Hướng dẫn 1 — Nhập môn",
+        "color": discord.Color.dark_purple(),
+        "fields": [
+            (
+                "👤 Tạo nhân vật",
+                "Gõ lệnh `/menu` lần đầu tiên, bấm **Tạo nhân vật** và đặt tên. "
+                "Mỗi tài khoản Discord chỉ có 1 nhân vật.",
+            ),
+            (
+                f"{ICONS['pathway']} Con đường (Pathway)",
+                "Vào mục **Con đường** trong `/menu` để chọn hướng phát triển cho nhân vật. "
+                "Mỗi Con đường có 9-10 **Sequence** (cấp bậc), đi từ số lớn xuống số nhỏ — "
+                "Sequence càng thấp thì càng mạnh.",
+            ),
+            (
+                f"{ICONS['spirituality']} Chỉ số cơ bản",
+                f"{ICONS['spirituality']} Tinh Thần (Spirituality): dùng để thi triển Năng lực.\n"
+                f"{ICONS['hp']} Sinh Lực (HP): về 0 sẽ gục trong chiến đấu.\n"
+                f"{ICONS['loss_of_control']} Nguy cơ mất kiểm soát: càng cao càng dễ gặp sự cố bất ngờ — "
+                "giữ Tinh Thần và trạng thái tâm lý ổn định để hạ chỉ số này.",
+            ),
+            (
+                "➡️ Tiếp theo",
+                "Dùng `/huong_dan trang:2` để xem cách chiến đấu và tăng sức mạnh.",
+            ),
+        ],
+    },
+    {
+        "title": "📖 Hướng dẫn 2 — Sức mạnh & Sinh tồn",
+        "color": discord.Color.purple(),
+        "fields": [
+            (
+                f"{ICONS['ability']} Năng lực",
+                "Mỗi Sequence trên Con đường mở khóa một Năng lực mới. Xem danh sách "
+                "và chi phí Tinh Thần trong mục **Năng lực**.",
+            ),
+            (
+                f"{ICONS['mysticism']} Huyền bí",
+                f"{ICONS['divination']} Bói toán (Tarot), {ICONS['ritual']} Nghi thức (Ritual) và Tri thức "
+                "(Knowledge) giúp nhân vật hiểu thêm về thế giới và mở thêm lựa chọn hành động.",
+            ),
+            (
+                f"{ICONS['inventory']} Tài sản",
+                f"{ICONS['potion']} Potion, {ICONS['artifact']} Artifact và trang bị được quản lý trong mục "
+                "**Tài sản**. Một số Potion cần chế tạo trước khi dùng.",
+            ),
+            (
+                f"{ICONS['combat']} Chiến đấu",
+                f"{ICONS['pve']} Đánh quái, {ICONS['pvp']} đấu người chơi khác, hoặc vào "
+                f"{ICONS['dungeon']} Dungeon theo nhóm. Có thể **Phòng thủ** hoặc **Rút lui** khi bất lợi.",
+            ),
+            (
+                "➡️ Tiếp theo",
+                "Dùng `/huong_dan trang:3` để xem về thế giới, tổ chức và giao dịch.",
+            ),
+        ],
+    },
+    {
+        "title": "📖 Hướng dẫn 3 — Thế giới & Xã hội",
+        "color": discord.Color.blue(),
+        "fields": [
+            (
+                f"{ICONS['world']} Thế giới",
+                f"Di chuyển giữa {ICONS['city']} Thành phố, khám phá {ICONS['location']} Địa điểm, gặp "
+                f"{ICONS['npc']} NPC, thực hiện {ICONS['investigation']} Điều tra và theo dõi "
+                f"{ICONS['event']} Sự kiện đang diễn ra.",
+            ),
+            (
+                f"{ICONS['faction']} Tổ chức & đồng đội",
+                f"Tham gia {ICONS['church']} Giáo hội hoặc {ICONS['faction']} Tổ chức, lập "
+                f"{ICONS['party']} Nhóm để cùng phiêu lưu.",
+            ),
+            (
+                f"{ICONS['economy']} Giao dịch",
+                f"Mua bán tại {ICONS['market']} Chợ, đấu giá ở {ICONS['auction']} Auction, hoặc thăm dò "
+                f"{ICONS['black_market']} Chợ đen (rủi ro cao hơn, cẩn thận khi giao dịch).",
+            ),
+            (
+                f"{ICONS['house']} Đời sống",
+                "Xây dựng và nâng cấp Nhà riêng, theo dõi Thành tựu và Bảng xếp hạng theo Mùa "
+                "trong mục **Đời sống**.",
+            ),
+            (
+                "✅ Xong rồi!",
+                "Quay lại trang bất kỳ bằng `/huong_dan trang:1` (hoặc 2, 3). Mở `/menu` để bắt đầu chơi.",
+            ),
+        ],
+    },
+]
+
+
+def build_guide_embed(page: int) -> discord.Embed:
+    page = max(1, min(page, len(GUIDE_PAGES)))
+    data = GUIDE_PAGES[page - 1]
+    embed = discord.Embed(title=data["title"], color=data["color"])
+    for name, value in data["fields"]:
+        embed.add_field(name=name, value=value, inline=False)
+    embed.set_footer(text=f"Trang {page}/{len(GUIDE_PAGES)}")
+    return embed
+
+
+class GuideView(SafeView):
+    """View điều hướng 3 trang hướng dẫn bằng nút bấm — không cần gõ lại lệnh."""
+
+    def __init__(self, page: int = 1):
+        super().__init__(timeout=180)
+        self.page = max(1, min(page, len(GUIDE_PAGES)))
+        self._sync_buttons()
+
+    def _sync_buttons(self):
+        self.previous_page.disabled = self.page <= 1
+        self.next_page.disabled = self.page >= len(GUIDE_PAGES)
+
+    @discord.ui.button(label="Trang trước", emoji="⬅️", style=discord.ButtonStyle.secondary, row=0)
+    async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page -= 1
+        self._sync_buttons()
+        await interaction.response.edit_message(embed=build_guide_embed(self.page), view=self)
+
+    @discord.ui.button(label="Trang sau", emoji="➡️", style=discord.ButtonStyle.secondary, row=0)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page += 1
+        self._sync_buttons()
+        await interaction.response.edit_message(embed=build_guide_embed(self.page), view=self)
+
+    @discord.ui.button(label="Mở menu", emoji=ICONS["character"], style=discord.ButtonStyle.primary, row=1)
+    async def open_menu(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = str(interaction.user.id)
+        user = db.get_or_create_user(user_id)
+        lang = user.get("language") or i18n.DEFAULT_LANG
+        character = db.get_character(user_id)
+        embed = build_character_embed(character)
+        view = MainMenuView(lang) if character else NoCharacterView()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+# ---------------------------------------------------------------------------
 # Cog
 # ---------------------------------------------------------------------------
 
 class MenuCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    @app_commands.command(name="huong_dan", description="Xem hướng dẫn chơi Quỷ Bí (3 trang)")
+    @app_commands.describe(trang="Trang hướng dẫn muốn xem: 1, 2 hoặc 3 (mặc định 1)")
+    @app_commands.choices(trang=[
+        app_commands.Choice(name="1 — Nhập môn", value=1),
+        app_commands.Choice(name="2 — Sức mạnh & Sinh tồn", value=2),
+        app_commands.Choice(name="3 — Thế giới & Xã hội", value=3),
+    ])
+    async def huong_dan(self, interaction: discord.Interaction, trang: app_commands.Choice[int] = None):
+        page = trang.value if trang else 1
+        embed = build_guide_embed(page)
+        view = GuideView(page)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @app_commands.command(name="menu", description="Mở giao diện chính của Quỷ Bí")
     async def menu(self, interaction: discord.Interaction):

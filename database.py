@@ -39,13 +39,16 @@ CREATE TABLE IF NOT EXISTS pathways (
     pathway_id TEXT PRIMARY KEY,
     icon TEXT NOT NULL,
     name_en TEXT NOT NULL,
-    title_en TEXT NOT NULL
+    name_vi TEXT NOT NULL DEFAULT '',
+    title_en TEXT NOT NULL,
+    title_vi TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS sequences (
     pathway_id TEXT NOT NULL,
     sequence_number INTEGER NOT NULL,
     name_en TEXT NOT NULL,
+    name_vi TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (pathway_id, sequence_number),
     FOREIGN KEY (pathway_id) REFERENCES pathways(pathway_id)
 );
@@ -168,6 +171,7 @@ CREATE TABLE IF NOT EXISTS abilities (
     pathway_id TEXT NOT NULL,
     sequence_number INTEGER NOT NULL,
     name_en TEXT NOT NULL,
+    name_vi TEXT NOT NULL DEFAULT '',
     cost INTEGER NOT NULL,
     damage_multiplier REAL NOT NULL,
     FOREIGN KEY (pathway_id) REFERENCES pathways(pathway_id)
@@ -190,6 +194,7 @@ CREATE TABLE IF NOT EXISTS combat_sessions (
 CREATE TABLE IF NOT EXISTS items (
     item_id TEXT PRIMARY KEY,
     name_en TEXT NOT NULL,
+    name_vi TEXT NOT NULL DEFAULT '',
     type TEXT NOT NULL,
     description TEXT,
     heal_hp INTEGER NOT NULL DEFAULT 0,
@@ -1190,6 +1195,49 @@ def _migrate_org_membership_is_member(conn):
             conn.execute(f"ALTER TABLE {table} ADD COLUMN is_member INTEGER NOT NULL DEFAULT 1")
 
 
+def _migrate_name_vi_columns(conn):
+    """DB tạo trước khi có bản dịch tiếng Việt cho Pathway/Sequence/Ability/Item
+    sẽ thiếu cột name_vi (title_vi riêng cho pathways). Thêm cột an toàn rồi
+    backfill lại từ đúng nguồn seed (data/pathways_seed.py, data/abilities_seed.py,
+    data/items_seed.py, data/black_market_seed.py) cho các hàng đã tồn tại —
+    không xoá/insert lại để không đụng tới FK đang được characters/inventory
+    tham chiếu."""
+    for table, cols in (
+        ("pathways", ["name_vi", "title_vi"]),
+        ("sequences", ["name_vi"]),
+        ("abilities", ["name_vi"]),
+        ("items", ["name_vi"]),
+    ):
+        existing_cols = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        for col in cols:
+            if col not in existing_cols:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+
+    # Backfill: chỉ update hàng đang có name_vi rỗng (không ghi đè nếu người
+    # vận hành đã tự chỉnh tay sau migrate).
+    for p in PATHWAYS:
+        conn.execute(
+            "UPDATE pathways SET name_vi = ?, title_vi = ? WHERE pathway_id = ? AND name_vi = ''",
+            (p["name_vi"], p["title_vi"], p["id"]),
+        )
+    for pathway_id, seq_num, seq_name, seq_name_vi in build_sequence_rows():
+        conn.execute(
+            "UPDATE sequences SET name_vi = ? WHERE pathway_id = ? AND sequence_number = ? AND name_vi = ''",
+            (seq_name_vi, pathway_id, seq_num),
+        )
+    for pathway_id, seq_num, ability_id, name_en, name_vi, cost, dmg in build_ability_rows():
+        conn.execute(
+            "UPDATE abilities SET name_vi = ? WHERE ability_id = ? AND name_vi = ''",
+            (name_vi, ability_id),
+        )
+    for row in ITEMS + BLACK_MARKET_ITEMS:
+        item_id, name_en, name_vi = row[0], row[1], row[2]
+        conn.execute(
+            "UPDATE items SET name_vi = ? WHERE item_id = ? AND name_vi = ''",
+            (name_vi, item_id),
+        )
+
+
 def init_db():
     """Tạo bảng nếu chưa có và seed dữ liệu Pathway/Sequence tĩnh."""
     with get_conn() as conn:
@@ -1200,22 +1248,23 @@ def init_db():
         _migrate_characters_risk_factors(conn)
         _migrate_users_active_character(conn)
         _migrate_org_membership_is_member(conn)
+        _migrate_name_vi_columns(conn)
         _ensure_active_season(conn)
 
         existing = conn.execute("SELECT COUNT(*) AS c FROM pathways").fetchone()["c"]
         if existing == 0:
             conn.executemany(
-                "INSERT INTO pathways (pathway_id, icon, name_en, title_en) VALUES (?, ?, ?, ?)",
-                [(p["id"], p["icon"], p["name_en"], p["title_en"]) for p in PATHWAYS],
+                "INSERT INTO pathways (pathway_id, icon, name_en, name_vi, title_en, title_vi) VALUES (?, ?, ?, ?, ?, ?)",
+                [(p["id"], p["icon"], p["name_en"], p["name_vi"], p["title_en"], p["title_vi"]) for p in PATHWAYS],
             )
             conn.executemany(
-                "INSERT INTO sequences (pathway_id, sequence_number, name_en) VALUES (?, ?, ?)",
+                "INSERT INTO sequences (pathway_id, sequence_number, name_en, name_vi) VALUES (?, ?, ?, ?)",
                 build_sequence_rows(),
             )
             # Potion tên theo Sequence mục tiêu (vd: uống "Clown Potion" để hướng tới Sequence 8 — Clown)
             potion_rows = [
                 (pathway_id, seq_num, f"{seq_name} Potion")
-                for pathway_id, seq_num, seq_name in build_sequence_rows()
+                for pathway_id, seq_num, seq_name, seq_name_vi in build_sequence_rows()
                 if seq_num < 9  # Sequence 9 là điểm khởi đầu, không cần Potion để "vào" nó
             ]
             conn.executemany(
@@ -1244,8 +1293,8 @@ def init_db():
         existing_abilities = conn.execute("SELECT COUNT(*) AS c FROM abilities").fetchone()["c"]
         if existing_abilities == 0:
             conn.executemany(
-                """INSERT INTO abilities (pathway_id, sequence_number, ability_id, name_en, cost, damage_multiplier)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO abilities (pathway_id, sequence_number, ability_id, name_en, name_vi, cost, damage_multiplier)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 build_ability_rows(),
             )
 
@@ -1253,9 +1302,9 @@ def init_db():
         if existing_items == 0:
             conn.executemany(
                 """INSERT INTO items
-                   (item_id, name_en, type, description, heal_hp, heal_spirituality,
+                   (item_id, name_en, name_vi, type, description, heal_hp, heal_spirituality,
                     equip_slot, modifier_key, modifier_value)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 ITEMS,
             )
 
@@ -1263,9 +1312,9 @@ def init_db():
         # vào DB đang chạy mà không đụng tới item đã tồn tại.
         conn.executemany(
             """INSERT OR IGNORE INTO items
-               (item_id, name_en, type, description, heal_hp, heal_spirituality,
+               (item_id, name_en, name_vi, type, description, heal_hp, heal_spirituality,
                 equip_slot, modifier_key, modifier_value)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             BLACK_MARKET_ITEMS,
         )
         conn.executemany(

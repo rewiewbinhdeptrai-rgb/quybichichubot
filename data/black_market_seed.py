@@ -24,38 +24,38 @@ currency: tất cả định giá bằng "Bảng" — đơn vị tiền tệ duy
 """
 
 # Item mới cần có trong bảng items trước khi black_market_listings có thể trỏ tới.
-# Định dạng giống hệt data/items_seed.py: (item_id, name_en, type, description,
-# heal_hp, heal_spirituality, equip_slot, modifier_key, modifier_value)
+# Định dạng giống hệt data/items_seed.py: (item_id, name_en, name_vi, type,
+# description, heal_hp, heal_spirituality, equip_slot, modifier_key, modifier_value)
 BLACK_MARKET_ITEMS = [
     (
-        "grey_fog_essence", "Grey Fog Essence", "material",
+        "grey_fog_essence", "Grey Fog Essence", "Tinh Chất Sương Xám", "material",
         "Tinh chất sương xám thu được từ khu vực có hoạt động Huyền bí bất thường. "
         "Nguyên liệu cấm cho một số công thức Potion cao cấp.", 0, 0, None, None, None,
     ),
     (
-        "unlicensed_beyonder_blood", "Unlicensed Beyonder Blood Sample", "material",
+        "unlicensed_beyonder_blood", "Unlicensed Beyonder Blood Sample", "Mẫu Máu Beyonder Không Giấy Phép", "material",
         "Mẫu máu Beyonder không rõ nguồn gốc, không qua kiểm định của Giáo hội. "
         "Sở hữu trái phép loại này là tội danh nghiêm trọng ở hầu hết các quốc gia.",
         0, 0, None, None, None,
     ),
     (
-        "black_fog_potion_vial", "Unlabeled Potion Vial (Black Fog)", "consumable",
+        "black_fog_potion_vial", "Unlabeled Potion Vial (Black Fog)", "Lọ Ma Dược Không Nhãn (Sương Đen)", "consumable",
         "Ma dược chế lậu, không rõ Pathway gốc, nhãn bị cố tình xoá. Hồi 15 Spirituality "
         "nhưng để lại dư chấn bất ổn trong cơ thể.", 0, 15, None, None, None,
     ),
     (
-        "0-13_music_box", "Sealed Item 0-13 (Music Box)", "equipment",
+        "0-13_music_box", "Sealed Item 0-13 (Music Box)", "Vật Phẩm Niêm Phong 0-13 (Hộp Nhạc)", "equipment",
         "Hộp nhạc bọc kín trong vải đen, mã hiệu chợ đen tự đặt \"0-13\" theo phong cách "
         "phân cấp của Nghị hội. Physical Damage +30% khi trang bị — nhưng thứ gì đó "
         "trong hộp vẫn còn thức.", 0, 0, "weapon", "physical_damage_pct", 30,
     ),
     (
-        "informant_dossier", "Informant Dossier", "material",
+        "informant_dossier", "Informant Dossier", "Hồ Sơ Chỉ Điểm", "material",
         "Tập hồ sơ chép tay về hoạt động của một Giáo hội hoặc Thế lực địa phương. "
         "Thông tin có thể đúng, có thể là mồi nhử.", 0, 0, None, None, None,
     ),
     (
-        "warped_tarot_deck", "Warped Tarot Deck", "material",
+        "warped_tarot_deck", "Warped Tarot Deck", "Bộ Bài Tarot Dị Dạng", "material",
         "Một bộ bài Tarot lạ, hoa văn không khớp với bất kỳ Tarot Club chính thức "
         "nào được ghi nhận.", 0, 0, None, None, None,
     ),
