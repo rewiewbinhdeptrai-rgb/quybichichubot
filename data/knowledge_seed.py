@@ -16,27 +16,27 @@ mở khóa Divination/Investigation sau này, chưa có phần thưởng cơ ch�
 
 KNOWLEDGE_DEFINITIONS = [
     (
-        "ritual_symbols_101", "Basic Ritual Symbols", "symbol",
+        "ritual_symbols_101", "Những Ký Hiệu Nghi Thức Cơ Bản", "symbol",
         "Ký hiệu nghi thức cơ bản dùng để khoanh vùng năng lượng huyền bí.",
         5, 10, 15, 5, None,
     ),
     (
-        "astral_pattern_reading", "Astral Pattern Reading", "symbol",
+        "astral_pattern_reading", "Giải Đọc Mô Thức Tinh Giới", "symbol",
         "Cách đọc quỹ đạo sao trời liên hệ tới vận mệnh cá nhân.",
         5, 10, 15, 8, None,
     ),
     (
-        "spirit_world_glimpse", "Glimpse of the Spirit World", "spirit_world",
+        "spirit_world_glimpse", "Thoáng Nhìn Thế Giới Linh Hồn", "spirit_world",
         "Một cái nhìn thoáng qua vào thế giới linh hồn song song với thực tại.",
         8, 15, 20, 15, None,
     ),
     (
-        "mystic_stabilization_technique", "Mystic Stabilization Technique", "ritual_knowledge",
+        "mystic_stabilization_technique", "Kỹ Thuật Ổn Định Bí Thuật", "ritual_knowledge",
         "Kỹ thuật hít thở và tập trung giúp ổn định tinh thần khi tiếp xúc Huyền bí.",
         6, 12, 18, 10, "mystic_insight",
     ),
     (
-        "forbidden_grimoire_fragment", "Forbidden Grimoire Fragment", "secret",
+        "forbidden_grimoire_fragment", "Mảnh Vỡ Cấm Thư", "secret",
         "Một đoạn trích từ cuốn sách cấm — nội dung không được phép sao chép lại ở đây.",
         10, 20, 25, 25, None,
     ),

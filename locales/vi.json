@@ -44,7 +44,7 @@
     "tier_vague": "🟡 Mơ hồ (Vague)",
     "tier_failed": "⚪ Thất bại (Failed)",
     "tier_ominous": "🔴 Điềm dữ (Ominous)",
-    "divination_result": "{method} → {tier}\n(roll {roll} vs {accuracy}% accuracy)"
+    "divination_result": "{method} → {tier}\n(tung {roll} so với {accuracy}% độ chính xác)"
   },
   "world_menu": {
     "placeholder": "Chọn chức năng",
@@ -91,10 +91,10 @@
     "title": "👤 Nhân vật",
     "no_character": "Bạn chưa có nhân vật nào.",
     "create_prompt": "Bấm **Tạo nhân vật** bên dưới để bắt đầu.",
-    "pathway": "Pathway",
-    "sequence": "Sequence",
-    "spirituality": "Spirituality",
-    "hp": "HP",
+    "pathway": "Con Đường",
+    "sequence": "Trình Tự",
+    "spirituality": "Linh Tính",
+    "hp": "Sinh Lực",
     "money": "Tiền",
     "location": "Vị trí",
     "loss_of_control_risk": "Nguy cơ Mất kiểm soát",

@@ -27,42 +27,42 @@ sau, giống tình trạng ingredient/ritual material hiện tại).
 ARTIFACT_EFFECT_DEFINITIONS = [
     # (effect_id, name_en, type, description, default_duration, modifier_key, modifier_value)
     (
-        "artifact_pocket_watch_effect", "Reversed Ticking", "buff",
+        "artifact_pocket_watch_effect", "Tiếng Tích Tắc Đảo Ngược", "buff",
         "Đồng hồ chạy ngược tích tắc — hồi Spirituality nhanh hơn.",
         4, "spirituality_regen_flat", 8,
     ),
     (
-        "artifact_pocket_watch_side", "Temporal Disorientation", "debuff",
+        "artifact_pocket_watch_side", "Rối Loạn Nhận Thức Thời Gian", "debuff",
         "Cảm giác lệch thời gian sau khi dùng đồng hồ — tăng nguy cơ mất kiểm soát.",
         3, "loss_of_control_risk_flat", 5,
     ),
     (
-        "artifact_widows_veil_effect", "Veiled Strike", "buff",
+        "artifact_widows_veil_effect", "Đòn Đánh Che Giấu", "buff",
         "Tấm màn che giấu sát khí thật — Physical Damage +25%.",
         3, "physical_damage_pct", 25,
     ),
     (
-        "artifact_widows_veil_side", "Exposed", "debuff",
+        "artifact_widows_veil_side", "Bị Lộ", "debuff",
         "Sơ hở sau đòn đánh dưới màn che — Damage nhận vào +15%.",
         3, "damage_taken_pct", 15,
     ),
     (
-        "artifact_seal_fragment_effect", "Stabilized Will", "buff",
+        "artifact_seal_fragment_effect", "Ý Chí Ổn Định", "buff",
         "Mảnh ấn tín ổn định ý chí — Loss of Control Risk -10.",
         5, "loss_of_control_risk_flat", -10,
     ),
     (
-        "artifact_seal_fragment_side", "Will Drain", "debuff",
+        "artifact_seal_fragment_side", "Suy Kiệt Ý Chí", "debuff",
         "Cái giá của sự ổn định — hao hụt hồi phục Spirituality.",
         5, "spirituality_regen_flat", -5,
     ),
     (
-        "artifact_unknown_vial_effect", "Unknown Ward", "buff",
+        "artifact_unknown_vial_effect", "Hộ Vệ Bí Ẩn", "buff",
         "Chất lỏng trong lọ tạo một lớp bảo vệ mơ hồ — Damage nhận vào -10%.",
         3, "damage_taken_pct", -10,
     ),
     (
-        "artifact_unknown_vial_side", "Numbness", "debuff",
+        "artifact_unknown_vial_side", "Tê Liệt", "debuff",
         "Tay chân tê dại sau khi tiếp xúc — Physical Damage -10%.",
         3, "physical_damage_pct", -10,
     ),
@@ -70,25 +70,25 @@ ARTIFACT_EFFECT_DEFINITIONS = [
 
 ARTIFACTS = [
     (
-        "tarnished_pocket_watch", "Tarnished Pocket Watch", "minor",
+        "tarnished_pocket_watch", "Đồng Hồ Bỏ Túi Hoen Ố", "minor",
         "Cửa hàng đồ cổ không tên ở Backlund", "Hộp kính niêm sáp",
         2, "artifact_pocket_watch_effect", "artifact_pocket_watch_side", 20, 5,
         "Kim đồng hồ đôi khi chạy ngược trong tích tắc, dù mặt kính vẫn nguyên vẹn.",
     ),
     (
-        "widows_veil_ring", "Widow's Veil Ring", "moderate",
+        "widows_veil_ring", "Nhẫn Mạng Che Của Góa Phụ", "moderate",
         "Di vật của một góa phụ mất tích", "Khắc ký hiệu bên trong nhẫn, không thể tháo bằng lực thường",
         3, "artifact_widows_veil_effect", "artifact_widows_veil_side", 35, 3,
         "Chiếc nhẫn ấm lên bất thường khi ở gần xung đột.",
     ),
     (
-        "black_emperor_seal_fragment", "Black Emperor Seal Fragment", "major",
+        "black_emperor_seal_fragment", "Mảnh Vỡ Phong Ấn Hắc Hoàng Đế", "major",
         "Vỡ ra từ một Sealed Artifact lớn hơn, nguồn gốc không rõ", "Bọc trong vải đen tẩm nghi thức",
         4, "artifact_seal_fragment_effect", "artifact_seal_fragment_side", 40, 2,
         "Mảnh ấn phát ra một áp lực tinh thần trầm ổn, như đang quan sát ngược lại người cầm.",
     ),
     (
-        "unlabeled_glass_vial", "Unlabeled Glass Vial", "unknown",
+        "unlabeled_glass_vial", "Bình Thủy Tinh Không Nhãn", "unknown",
         "Không rõ — tìm thấy trong hành trang khởi đầu", "Nút chai niêm chì, chưa từng bị mở",
         5, "artifact_unknown_vial_effect", "artifact_unknown_vial_side", 30, 4,
         "Chất lỏng bên trong không có màu, không có mùi, và không đứng yên.",

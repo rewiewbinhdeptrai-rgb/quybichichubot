@@ -13,25 +13,25 @@ Các modifier_key đang được EffectEngine/progression.py thực sự sử d�
 EFFECT_DEFINITIONS = [
     # (effect_id, name_en, type, description, default_duration, modifier_key, modifier_value)
     (
-        "strengthened_body", "Strengthened Body", "buff",
+        "strengthened_body", "Cường Hóa Thân Thể", "buff",
         "Physical Damage +15%", 3, "physical_damage_pct", 15,
     ),
     (
-        "weakened", "Weakened", "debuff",
+        "weakened", "Suy Yếu", "debuff",
         "Physical Damage -20%", 2, "physical_damage_pct", -20,
     ),
     (
-        "potion_instability", "Potion Instability", "debuff",
+        "potion_instability", "Dược Tính Bất Ổn", "debuff",
         "Vừa uống Potion — cơ thể chưa thích nghi, tăng nguy cơ mất kiểm soát.",
         5, "loss_of_control_risk_flat", 5,
     ),
     (
-        "newly_advanced", "Newly Advanced", "buff",
+        "newly_advanced", "Vừa Thăng Cấp", "buff",
         "Vừa tiến cấp thành công — tinh thần ổn định hơn, hồi Spirituality nhanh hơn.",
         5, "spirituality_regen_flat", 5,
     ),
     (
-        "ritual_backlash", "Ritual Backlash", "debuff",
+        "ritual_backlash", "Phản Phệ Nghi Thức", "debuff",
         "Nghi thức tiến cấp thất bại — phản chấn tinh thần.",
         4, "loss_of_control_risk_flat", 15,
     ),
@@ -42,18 +42,18 @@ EFFECT_DEFINITIONS = [
     ),
     # --- Divination (mục 19) ---
     (
-        "divination_backlash", "Divination Backlash", "debuff",
+        "divination_backlash", "Phản Phệ Bói Toán", "debuff",
         "Một lần Bói toán \"ominous\" — chạm vào điều không nên biết.",
         3, "loss_of_control_risk_flat", 8,
     ),
     # --- Mysticism Knowledge (mục 18) ---
     (
-        "mysticism_overreach", "Mysticism Overreach", "debuff",
+        "mysticism_overreach", "Bí Thuật Quá Giới Hạn", "debuff",
         "Thấu hiểu kiến thức Huyền bí quá sâu — tâm trí quá tải tạm thời.",
         4, "loss_of_control_risk_flat", 10,
     ),
     (
-        "mystic_insight", "Mystic Insight", "buff",
+        "mystic_insight", "Linh Cảm Huyền Bí", "buff",
         "Đã Thấu hiểu kỹ thuật ổn định tinh thần — Loss of Control Risk -5 (vĩnh viễn trong phiên chơi).",
         999999, "loss_of_control_risk_flat", -5,
     ),
@@ -61,28 +61,28 @@ EFFECT_DEFINITIONS = [
     # thật qua modifier_key đã được EffectEngine/combat/digestion tiêu thụ, không
     # chỉ là debuff hiển thị suông. ---
     (
-        "mental_disturbance", "Mental Disturbance", "debuff",
+        "mental_disturbance", "Tinh Thần Nhiễu Loạn", "debuff",
         "Sự cố mất kiểm soát mức Nhẹ — tinh thần dao động, dễ mất kiểm soát hơn nữa.",
         3, "loss_of_control_risk_flat", 6,
     ),
     (
-        "confused_state", "Confused", "debuff",
+        "confused_state", "Hoang Mang", "debuff",
         "Sự cố mất kiểm soát mức Trung bình — ảo giác thoáng qua khiến đòn đánh thiếu chính xác.",
         3, "physical_damage_pct", -20,
     ),
     (
-        "control_lost_temp", "Temporary Loss of Control", "debuff",
+        "control_lost_temp", "Mất Kiểm Soát Tạm Thời", "debuff",
         "Sự cố mất kiểm soát mức Nặng — cơ thể phản ứng chậm, dễ trúng đòn hơn hẳn.",
         3, "damage_taken_pct", 25,
     ),
     (
-        "post_incident_trauma", "Post-Incident Trauma", "debuff",
+        "post_incident_trauma", "Chấn Thương Tâm Lý Hậu Sự Cố", "debuff",
         "Vừa trải qua một sự cố mất kiểm soát Cực nặng — dư chấn còn kéo dài, nguy cơ tái phát cao.",
         5, "loss_of_control_risk_flat", 12,
     ),
     # --- Black Market trap outcome (mục 41) ---
     (
-        "black_market_trap", "Sabotaged Goods", "debuff",
+        "black_market_trap", "Hàng Hóa Bị Phá Hoại", "debuff",
         "Vừa dính bẫy khi mua hàng ở Chợ đen — cơ thể phản ứng xấu với món hàng lậu.",
         4, "physical_damage_pct", -15,
     ),

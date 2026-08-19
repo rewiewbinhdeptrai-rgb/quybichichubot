@@ -22,12 +22,18 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("quyby-bot")
 
 INTENTS = discord.Intents.default()
-# /menu chỉ dùng slash command + component, không cần message_content intent
+# Bật message_content: cần cho lệnh dạng text ".huongdan" (commands.command)
+# đọc được nội dung tin nhắn. Các lệnh còn lại vẫn dùng slash command +
+# component nên không phụ thuộc intent này.
+INTENTS.message_content = True
 
 
 class QuyBiBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=INTENTS)
+        # Prefix "." cho lệnh text (hiện chỉ có .huongdan) — tách biệt với
+        # slash command "/" để không bị lẫn vào danh sách autocomplete
+        # slash command chung của server (có thể trùng tên với bot khác).
+        super().__init__(command_prefix=".", intents=INTENTS)
 
     async def setup_hook(self):
         db.init_db()

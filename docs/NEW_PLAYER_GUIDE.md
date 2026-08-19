@@ -291,9 +291,8 @@ lực, Huyền bí, Tài sản, Chiến đấu, Thế giới, Tổ chức, Giao 
 sống, Cài đặt) đều mở ra bằng cách chọn trong các menu thả xuống và nút
 bấm bên trong `/menu` — không phải bằng cách gõ thêm lệnh khác.
 
-> 💡 Ngoài ra còn có lệnh `/huong_dan` cho một hướng dẫn nhanh 3 trang
-> ngay trong Discord (gõ `/huong_dan trang:1`, `2` hoặc `3`) — dùng để
-> ôn lại nhanh, còn tài liệu đầy đủ vẫn là văn bản này.
+> 💡 Gõ `.huongdan` (không phải slash command) trong kênh chat để bot gửi
+> thẳng nguyên văn tài liệu này ngay trong Discord, không cần tải file.
 
 ---
 

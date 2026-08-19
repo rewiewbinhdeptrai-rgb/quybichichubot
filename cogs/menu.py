@@ -55,7 +55,7 @@ DATA_ADMIN_USER_ID = 1530490044098285711
 
 MAIN_CATEGORIES = [
     ("character", "Nhân vật", "Hồ sơ, chỉ số, trạng thái.", ICONS["character"]),
-    ("pathway", "Con đường", "Pathway, Sequence, tiến cấp.", ICONS["pathway"]),
+    ("pathway", "Con đường", "Con Đường, Trình Tự, tiến cấp.", ICONS["pathway"]),
     ("ability", "Năng lực", "Abilities, Passive, kỹ năng.", ICONS["ability"]),
     ("mysticism", "Huyền bí", "Mysticism, Divination, Ritual, Knowledge.", ICONS["mysticism"]),
     ("inventory", "Tài sản", "Inventory, Potion, Artifact, Equipment.", ICONS["inventory"]),
@@ -144,7 +144,7 @@ def build_character_embed(character: dict) -> discord.Embed:
 
     if pathway:
         pathway_line = f"{pathway['icon']} {pathway['name_vi']}"
-        seq_line = f"Sequence {character['sequence_number']}" + (f" — {seq_name}" if seq_name else "")
+        seq_line = f"Trình Tự {character['sequence_number']}" + (f" — {seq_name}" if seq_name else "")
     else:
         pathway_line = "Chưa chọn"
         seq_line = "—"
@@ -209,7 +209,7 @@ def build_ability_menu_embed(character: dict) -> discord.Embed:
 
     embed = discord.Embed(
         title=f"{icon} NĂNG LỰC — {pathway['name_vi']}",
-        description=f"Sequence hiện tại: {character['sequence_number']}. "
+        description=f"Trình Tự hiện tại: {character['sequence_number']}. "
                      f"Đã mở khóa {len(abilities)} Ability (Sequence đã đi qua trở lên).",
         color=discord.Color.purple(),
     )
@@ -218,7 +218,7 @@ def build_ability_menu_embed(character: dict) -> discord.Embed:
     else:
         for a in abilities:
             embed.add_field(
-                name=f"Sequence {a['sequence_number']} — {a['name_vi']}",
+                name=f"Trình Tự {a['sequence_number']} — {a['name_vi']}",
                 value=f"Cost: {a['cost']} Spirituality · Damage x{a['damage_multiplier']}",
                 inline=False,
             )
@@ -634,11 +634,11 @@ class PathwaySelect(discord.ui.Select):
         options = [
             discord.SelectOption(
                 label=p["name_vi"], value=p["pathway_id"],
-                description=f"Title: {p['title_vi']}", emoji=p["icon"],
+                description=f"Danh hiệu: {p['title_vi']}", emoji=p["icon"],
             )
             for p in pathways
         ]
-        super().__init__(placeholder="🧬 Chọn Pathway", options=options, row=0)
+        super().__init__(placeholder="🧬 Chọn Con Đường", options=options, row=0)
 
     async def callback(self, interaction: discord.Interaction):
         pathway_id = self.values[0]
@@ -652,8 +652,8 @@ class PathwaySelect(discord.ui.Select):
             current_sequence = 9
 
         embed = discord.Embed(
-            title=f"{pathway['icon']} {pathway['name_vi'].upper()} PATHWAY",
-            description=f"Title: **{pathway['title_vi']}**\nSequence 9 → 0",
+            title=f"{pathway['icon']} {pathway['name_vi'].upper()} — CON ĐƯỜNG",
+            description=f"Danh hiệu: **{pathway['title_vi']}**\nTrình Tự 9 → 0",
             color=discord.Color.dark_purple(),
         )
         view = SequenceSelectView(pathway_id, current_sequence)
@@ -674,7 +674,7 @@ class ChoosePathwayButton(discord.ui.Button):
     (mục 6), khác với Advancement (mục 12) vốn phải qua Potion/Digestion/Ritual."""
 
     def __init__(self, pathway_id: str):
-        super().__init__(label="Nhận Pathway này (Sequence 9)", emoji="🧬", style=discord.ButtonStyle.success, row=1)
+        super().__init__(label="Nhận Con Đường này (Trình Tự 9)", emoji="🧬", style=discord.ButtonStyle.success, row=1)
         self.pathway_id = pathway_id
 
     async def callback(self, interaction: discord.Interaction):
@@ -684,7 +684,7 @@ class ChoosePathwayButton(discord.ui.Button):
             return
         if character["pathway_id"] is not None:
             await interaction.response.send_message(
-                "Nhân vật đã có Pathway rồi — không thể đổi trực tiếp.", ephemeral=True
+                "Nhân vật đã có Con Đường rồi — không thể đổi trực tiếp.", ephemeral=True
             )
             return
         db.set_character_pathway(character["character_id"], self.pathway_id, 9)
@@ -712,7 +712,7 @@ class SequenceSelect(discord.ui.Select):
                     emoji=emoji,
                 )
             )
-        super().__init__(placeholder="🔢 Chọn Sequence", options=options, row=0)
+        super().__init__(placeholder="🔢 Chọn Trình Tự", options=options, row=0)
         self.pathway_id = pathway_id
         self.current_sequence = current_sequence
 
@@ -724,9 +724,9 @@ class SequenceSelect(discord.ui.Select):
         unlocked = self.current_sequence is not None and chosen >= self.current_sequence
         if not unlocked:
             embed = discord.Embed(
-                title=f"🔒 Sequence {chosen} — {sequences[chosen]}",
+                title=f"🔒 Trình Tự {chosen} — {sequences[chosen]}",
                 description=(
-                    "Nhân vật chưa đạt tới Sequence này.\n"
+                    "Nhân vật chưa đạt tới Trình Tự này.\n"
                     "Tiến cấp phải đi qua: Potion → Adaptation → Acting → "
                     "Digestion → Nghi thức → Tiến cấp."
                 ),
@@ -734,10 +734,10 @@ class SequenceSelect(discord.ui.Select):
             )
         else:
             embed = discord.Embed(
-                title=f"🔢 SEQUENCE {chosen} — {sequences[chosen]}",
+                title=f"🔢 TRÌNH TỰ {chosen} — {sequences[chosen]}",
                 color=discord.Color.purple(),
             )
-            embed.add_field(name=f"{ICONS['pathway']} Pathway", value=pathway["name_vi"], inline=True)
+            embed.add_field(name=f"{ICONS['pathway']} Con Đường", value=pathway["name_vi"], inline=True)
 
             character = db.get_character(str(interaction.user.id))
             is_current = (
@@ -1096,7 +1096,7 @@ def build_potion_view(character: dict):
     if character is None or character["pathway_id"] is None:
         embed = discord.Embed(
             title=f"{ICONS['potion']} MA DƯỢC",
-            description="Nhân vật cần có Pathway trước (vào 🧬 Con đường).",
+            description="Nhân vật cần có Con Đường trước (vào 🧬 Con đường).",
             color=discord.Color.dark_grey(),
         )
         return embed, PotionActionsView(character, progress=None)
@@ -1105,8 +1105,8 @@ def build_potion_view(character: dict):
     pathway = db.get_pathway(character["pathway_id"])
 
     embed = discord.Embed(title=f"{ICONS['potion']} MA DƯỢC", color=discord.Color.purple())
-    embed.add_field(name="Pathway", value=f"{pathway['icon']} {pathway['name_vi']}", inline=True)
-    embed.add_field(name="Sequence hiện tại", value=str(character["sequence_number"]), inline=True)
+    embed.add_field(name="Con Đường", value=f"{pathway['icon']} {pathway['name_vi']}", inline=True)
+    embed.add_field(name="Trình Tự hiện tại", value=str(character["sequence_number"]), inline=True)
     embed.add_field(
         name="Potion đang dùng",
         value=potion["name_vi"] if potion else "Chưa uống (idle)",
@@ -1245,7 +1245,7 @@ class AdvancementButton(discord.ui.Button):
         color_note = "✅" if result["success"] else "☠️"
         embed.add_field(name="Kết quả Nghi thức", value=f"{color_note} {result['message']}", inline=False)
         if result["success"]:
-            embed.add_field(name="Sequence mới", value=str(result["new_sequence"]), inline=False)
+            embed.add_field(name="Trình Tự mới", value=str(result["new_sequence"]), inline=False)
             gained = result.get("characteristic")
             if gained:
                 embed.add_field(
@@ -5221,223 +5221,56 @@ class NoCharacterView(SafeView):
 
 
 # ---------------------------------------------------------------------------
-# 📖 Hướng dẫn chơi (/huong_dan) — 3 trang, dành cho người chơi mới
-# ---------------------------------------------------------------------------
-
-GUIDE_PAGES = [
-    {
-        "title": "📖 Hướng dẫn 1 — Nhập môn",
-        "color": discord.Color.dark_purple(),
-        "fields": [
-            (
-                "👤 Tạo nhân vật",
-                "Gõ lệnh `/menu` lần đầu tiên, bấm **Tạo nhân vật** và đặt tên. "
-                "Mỗi tài khoản Discord chỉ có 1 nhân vật.",
-            ),
-            (
-                f"{ICONS['pathway']} Con đường (Pathway)",
-                "Vào mục **Con đường** trong `/menu` để chọn hướng phát triển cho nhân vật. "
-                "Mỗi Con đường có 9-10 **Sequence** (cấp bậc), đi từ số lớn xuống số nhỏ — "
-                "Sequence càng thấp thì càng mạnh.",
-            ),
-            (
-                f"{ICONS['spirituality']} Chỉ số cơ bản",
-                f"{ICONS['spirituality']} Tinh Thần (Spirituality): dùng để thi triển Năng lực.\n"
-                f"{ICONS['hp']} Sinh Lực (HP): về 0 sẽ gục trong chiến đấu.\n"
-                f"{ICONS['loss_of_control']} Nguy cơ mất kiểm soát: càng cao càng dễ gặp sự cố bất ngờ — "
-                "giữ Tinh Thần và trạng thái tâm lý ổn định để hạ chỉ số này.",
-            ),
-            (
-                "➡️ Tiếp theo",
-                "Dùng `/huong_dan trang:2` để xem cách chiến đấu và tăng sức mạnh.",
-            ),
-        ],
-    },
-    {
-        "title": "📖 Hướng dẫn 2 — Sức mạnh & Sinh tồn",
-        "color": discord.Color.purple(),
-        "fields": [
-            (
-                f"{ICONS['ability']} Năng lực",
-                "Mỗi Sequence trên Con đường mở khóa một Năng lực mới. Xem danh sách "
-                "và chi phí Tinh Thần trong mục **Năng lực**.",
-            ),
-            (
-                f"{ICONS['mysticism']} Huyền bí",
-                f"{ICONS['divination']} Bói toán (Tarot), {ICONS['ritual']} Nghi thức (Ritual) và Tri thức "
-                "(Knowledge) giúp nhân vật hiểu thêm về thế giới và mở thêm lựa chọn hành động.",
-            ),
-            (
-                f"{ICONS['inventory']} Tài sản",
-                f"{ICONS['potion']} Potion, {ICONS['artifact']} Artifact và trang bị được quản lý trong mục "
-                "**Tài sản**. Một số Potion cần chế tạo trước khi dùng.",
-            ),
-            (
-                f"{ICONS['combat']} Chiến đấu",
-                f"{ICONS['pve']} Đánh quái, {ICONS['pvp']} đấu người chơi khác, hoặc vào "
-                f"{ICONS['dungeon']} Dungeon theo nhóm. Có thể **Phòng thủ** hoặc **Rút lui** khi bất lợi.",
-            ),
-            (
-                "➡️ Tiếp theo",
-                "Dùng `/huong_dan trang:3` để xem về thế giới, tổ chức và giao dịch.",
-            ),
-        ],
-    },
-    {
-        "title": "📖 Hướng dẫn 3 — Thế giới & Xã hội",
-        "color": discord.Color.blue(),
-        "fields": [
-            (
-                f"{ICONS['world']} Thế giới",
-                f"Di chuyển giữa {ICONS['city']} Thành phố, khám phá {ICONS['location']} Địa điểm, gặp "
-                f"{ICONS['npc']} NPC, thực hiện {ICONS['investigation']} Điều tra và theo dõi "
-                f"{ICONS['event']} Sự kiện đang diễn ra.",
-            ),
-            (
-                f"{ICONS['faction']} Tổ chức & đồng đội",
-                f"Tham gia {ICONS['church']} Giáo hội hoặc {ICONS['faction']} Tổ chức, lập "
-                f"{ICONS['party']} Nhóm để cùng phiêu lưu.",
-            ),
-            (
-                f"{ICONS['economy']} Giao dịch",
-                f"Mua bán tại {ICONS['market']} Chợ, đấu giá ở {ICONS['auction']} Auction, hoặc thăm dò "
-                f"{ICONS['black_market']} Chợ đen (rủi ro cao hơn, cẩn thận khi giao dịch).",
-            ),
-            (
-                f"{ICONS['house']} Đời sống",
-                "Xây dựng và nâng cấp Nhà riêng, theo dõi Thành tựu và Bảng xếp hạng theo Mùa "
-                "trong mục **Đời sống**.",
-            ),
-            (
-                "✅ Xong rồi!",
-                "Quay lại trang bất kỳ bằng `/huong_dan trang:1` (hoặc 2, 3). Mở `/menu` để bắt đầu chơi.",
-            ),
-        ],
-    },
-]
-
-
-def build_guide_embed(page: int) -> discord.Embed:
-    page = max(1, min(page, len(GUIDE_PAGES)))
-    data = GUIDE_PAGES[page - 1]
-    embed = discord.Embed(title=data["title"], color=data["color"])
-    for name, value in data["fields"]:
-        embed.add_field(name=name, value=value, inline=False)
-    embed.set_footer(text=f"Trang {page}/{len(GUIDE_PAGES)}")
-    return embed
-
-
-class GuideView(SafeView):
-    """View điều hướng 3 trang hướng dẫn bằng nút bấm — không cần gõ lại lệnh."""
-
-    def __init__(self, page: int = 1):
-        super().__init__(timeout=180)
-        self.page = max(1, min(page, len(GUIDE_PAGES)))
-        self._sync_buttons()
-
-    def _sync_buttons(self):
-        self.previous_page.disabled = self.page <= 1
-        self.next_page.disabled = self.page >= len(GUIDE_PAGES)
-
-    @discord.ui.button(label="Trang trước", emoji="⬅️", style=discord.ButtonStyle.secondary, row=0)
-    async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.page -= 1
-        self._sync_buttons()
-        await interaction.response.edit_message(embed=build_guide_embed(self.page), view=self)
-
-    @discord.ui.button(label="Trang sau", emoji="➡️", style=discord.ButtonStyle.secondary, row=0)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.page += 1
-        self._sync_buttons()
-        await interaction.response.edit_message(embed=build_guide_embed(self.page), view=self)
-
-    @discord.ui.button(label="Mở menu", emoji=ICONS["character"], style=discord.ButtonStyle.primary, row=1)
-    async def open_menu(self, interaction: discord.Interaction, button: discord.ui.Button):
-        user_id = str(interaction.user.id)
-        user = db.get_or_create_user(user_id)
-        lang = user.get("language") or i18n.DEFAULT_LANG
-        character = db.get_character(user_id)
-        embed = build_character_embed(character)
-        view = MainMenuView(lang) if character else NoCharacterView()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-
-# ---------------------------------------------------------------------------
-# Hướng dẫn người chơi mới (đọc trực tiếp từ docs/NEW_PLAYER_GUIDE.md)
+# 📘 Hướng dẫn người chơi mới (.huongdan) — đọc trực tiếp docs/NEW_PLAYER_GUIDE.md
+# và gửi NGUYÊN VĂN nội dung dạng tin nhắn text, không gửi kèm file đính kèm.
+# Đọc thẳng từ file nên nội dung .huongdan luôn khớp với tài liệu gốc, không
+# cần đồng bộ tay khi tài liệu thay đổi.
 # ---------------------------------------------------------------------------
 
 GUIDE_DOC_PATH = os.path.join(os.path.dirname(__file__), "..", "docs", "NEW_PLAYER_GUIDE.md")
-GUIDE_DOC_PAGE_BUDGET = 3500  # ký tự tối đa mỗi trang embed (Discord giới hạn description 4096)
+GUIDE_DOC_CHUNK_BUDGET = 1900  # chừa lề dưới giới hạn 2000 ký tự/tin nhắn thường của Discord
 
 
-def _load_guide_doc_pages() -> list:
-    """Đọc docs/NEW_PLAYER_GUIDE.md, tách theo từng mục "## ..." và gộp lại
-    thành các trang sao cho không vượt giới hạn ký tự của embed Discord.
-    Đọc trực tiếp từ file nên nội dung /huongdan luôn khớp với tài liệu gốc,
-    không cần đồng bộ tay khi tài liệu thay đổi."""
+def _load_guide_doc_chunks() -> list:
+    """Đọc docs/NEW_PLAYER_GUIDE.md và cắt thành nhiều đoạn <= giới hạn ký tự
+    tin nhắn thường của Discord (2000). Ưu tiên cắt tại ranh giới mục
+    "## ..." để không chẻ ngang nội dung; nếu một mục vẫn dài hơn giới hạn,
+    cắt tiếp theo dòng gần nhất."""
     if not os.path.exists(GUIDE_DOC_PATH):
         return []
 
     with open(GUIDE_DOC_PATH, "r", encoding="utf-8") as f:
         raw = f.read()
 
-    # Bỏ các dòng "---" (horizontal rule) để không lẫn vào nội dung trang.
-    raw = re.sub(r"(?m)^---\s*$\n?", "", raw)
-
     sections = [s.strip("\n") for s in re.split(r"(?m)^(?=## )", raw) if s.strip()]
+    if not sections:
+        sections = [raw.strip()]
 
-    pages = []
+    chunks = []
     current = ""
     for section in sections:
+        while len(section) > GUIDE_DOC_CHUNK_BUDGET:
+            cut = section.rfind("\n", 0, GUIDE_DOC_CHUNK_BUDGET)
+            cut = cut if cut > 0 else GUIDE_DOC_CHUNK_BUDGET
+            piece, section = section[:cut], section[cut:]
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(piece)
+
         candidate = f"{current}\n\n{section}" if current else section
-        if current and len(candidate) > GUIDE_DOC_PAGE_BUDGET:
-            pages.append(current)
+        if current and len(candidate) > GUIDE_DOC_CHUNK_BUDGET:
+            chunks.append(current)
             current = section
         else:
             current = candidate
     if current:
-        pages.append(current)
+        chunks.append(current)
 
-    return pages
-
-
-GUIDE_DOC_PAGES = _load_guide_doc_pages()
+    return chunks
 
 
-def build_guide_doc_embed(page: int) -> discord.Embed:
-    page = max(1, min(page, len(GUIDE_DOC_PAGES)))
-    embed = discord.Embed(
-        title="📘 Hướng dẫn người chơi mới",
-        description=GUIDE_DOC_PAGES[page - 1],
-        color=discord.Color.dark_purple(),
-    )
-    embed.set_footer(text=f"Trang {page}/{len(GUIDE_DOC_PAGES)}")
-    return embed
-
-
-class GuideDocView(SafeView):
-    """View điều hướng nhiều trang cho nội dung docs/NEW_PLAYER_GUIDE.md."""
-
-    def __init__(self, page: int = 1):
-        super().__init__(timeout=180)
-        self.page = max(1, min(page, len(GUIDE_DOC_PAGES)))
-        self._sync_buttons()
-
-    def _sync_buttons(self):
-        self.previous_page.disabled = self.page <= 1
-        self.next_page.disabled = self.page >= len(GUIDE_DOC_PAGES)
-
-    @discord.ui.button(label="Trang trước", emoji="⬅️", style=discord.ButtonStyle.secondary, row=0)
-    async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.page -= 1
-        self._sync_buttons()
-        await interaction.response.edit_message(embed=build_guide_doc_embed(self.page), view=self)
-
-    @discord.ui.button(label="Trang sau", emoji="➡️", style=discord.ButtonStyle.secondary, row=0)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.page += 1
-        self._sync_buttons()
-        await interaction.response.edit_message(embed=build_guide_doc_embed(self.page), view=self)
+GUIDE_DOC_CHUNKS = _load_guide_doc_chunks()
 
 
 # ---------------------------------------------------------------------------
@@ -5448,29 +5281,19 @@ class MenuCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="huong_dan", description="Xem hướng dẫn chơi Quỷ Bí (3 trang)")
-    @app_commands.describe(trang="Trang hướng dẫn muốn xem: 1, 2 hoặc 3 (mặc định 1)")
-    @app_commands.choices(trang=[
-        app_commands.Choice(name="1 — Nhập môn", value=1),
-        app_commands.Choice(name="2 — Sức mạnh & Sinh tồn", value=2),
-        app_commands.Choice(name="3 — Thế giới & Xã hội", value=3),
-    ])
-    async def huong_dan(self, interaction: discord.Interaction, trang: app_commands.Choice[int] = None):
-        page = trang.value if trang else 1
-        embed = build_guide_embed(page)
-        view = GuideView(page)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
-    @app_commands.command(name="huongdan", description="Xem nội dung Hướng dẫn người chơi mới (New Player Guide)")
-    async def huongdan(self, interaction: discord.Interaction):
-        if not GUIDE_DOC_PAGES:
-            embed = error_handler.player_error_embed("not_found")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+    @commands.command(name="huongdan")
+    async def huongdan_text(self, ctx: commands.Context):
+        """Lệnh dạng text (.huongdan) — gửi nguyên nội dung
+        docs/NEW_PLAYER_GUIDE.md dưới dạng tin nhắn text (không gửi file đính
+        kèm), chia nhỏ theo giới hạn 2000 ký tự/tin nhắn của Discord. Dùng
+        lệnh text thay vì slash command để không lẫn vào danh sách
+        autocomplete slash command chung của các bot khác trong server."""
+        if not GUIDE_DOC_CHUNKS:
+            await ctx.send("Chưa có nội dung hướng dẫn (docs/NEW_PLAYER_GUIDE.md không tồn tại).")
             return
 
-        embed = build_guide_doc_embed(1)
-        view = GuideDocView(1)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        for chunk in GUIDE_DOC_CHUNKS:
+            await ctx.send(chunk)
 
     @app_commands.command(name="menu", description="Mở giao diện chính của Quỷ Bí")
     async def menu(self, interaction: discord.Interaction):
